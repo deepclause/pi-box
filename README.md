@@ -1,5 +1,7 @@
 # pi-box
 
+![pi-box screenshot](docs/screenshot.png)
+
 Native desktop app for macOS, Linux and Windows that wraps
 [AgentVM](https://github.com/deepclause/agentvm) — a lightweight WASM-based
 Alpine Linux VM with the **pi coding agent** installed — and gives you:
@@ -13,6 +15,13 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 - an **open in file manager** action (`open` / `xdg-open` / Explorer depending on OS).
 
 ![status](https://img.shields.io/badge/status-prototype-orange)
+
+> **Startup note:** booting to a shell is fast because the VM is snapshotted
+> with Wizer, but launching `pi` itself (a Node/V8 process inside the emulated
+> RISC-V VM) is currently slow — expect roughly a minute before the splash
+> screen hands over to pi. We set `PI_OFFLINE=1` at startup so pi skips its
+> slow network downloads (fd/ripgrep, catalog refresh), which keeps this as
+> fast as possible.
 
 ---
 

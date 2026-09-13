@@ -128,6 +128,10 @@ export class VmManager extends EventEmitter {
     lines.push(`mkdir -p ${piDir}/sessions`)
     lines.push(`export PI_CODING_AGENT_DIR=${piDir}`)
     lines.push(`export PI_CODING_AGENT_SESSION_DIR=${piDir}/sessions`)
+    // PI_OFFLINE skips pi's slow startup network ops (version check, fd/ripgrep
+    // download, model-catalog refresh) so the TUI appears in ~40s instead of
+    // minutes. It does not disable provider/model API calls later.
+    lines.push('export PI_OFFLINE=1')
     lines.push('export PI_SKIP_VERSION_CHECK=1')
     lines.push('export PI_TELEMETRY=0')
     lines.push('export LANG=C.UTF-8')
