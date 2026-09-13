@@ -34,6 +34,16 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 - **Windows (installer):** [pi-box.Setup.0.1.2.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box.Setup.0.1.2.exe)
 - **Windows (portable):** [pi-box.0.1.2.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box.0.1.2.exe)
 
+> **macOS note:** the builds are currently **unsigned and not notarized**. macOS
+> Gatekeeper may block the app on first launch or cause odd errors. If that
+> happens, remove the quarantine attribute:
+>
+> ```sh
+> xattr -dr com.apple.quarantine /Applications/pi-box.app
+> ```
+>
+> (adjust the path if you moved the app elsewhere).
+
 ---
 
 ## Design
