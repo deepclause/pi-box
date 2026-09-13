@@ -25,14 +25,14 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 ## Download
 
-[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.1.1`
+[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.1.2`
 
-- **macOS (Apple Silicon):** [pi-box-0.1.1-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box-0.1.1-arm64.dmg)
-- **macOS (Intel):** [pi-box-0.1.1.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box-0.1.1.dmg)
-- **Linux (AppImage):** [pi-box-0.1.1.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box-0.1.1.AppImage)
-- **Linux (deb):** [pi-box_0.1.1_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box_0.1.1_amd64.deb)
-- **Windows (installer):** [pi-box.Setup.0.1.1.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box.Setup.0.1.1.exe)
-- **Windows (portable):** [pi-box.0.1.1.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box.0.1.1.exe)
+- **macOS (Apple Silicon):** [pi-box-0.1.2-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box-0.1.2-arm64.dmg)
+- **macOS (Intel):** [pi-box-0.1.2.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box-0.1.2.dmg)
+- **Linux (AppImage):** [pi-box-0.1.2.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box-0.1.2.AppImage)
+- **Linux (deb):** [pi-box_0.1.2_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box_0.1.2_amd64.deb)
+- **Windows (installer):** [pi-box.Setup.0.1.2.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box.Setup.0.1.2.exe)
+- **Windows (portable):** [pi-box.0.1.2.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box.0.1.2.exe)
 
 ---
 
