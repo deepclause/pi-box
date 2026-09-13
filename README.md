@@ -23,6 +23,17 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 > slow network downloads (fd/ripgrep, catalog refresh), which keeps this as
 > fast as possible.
 
+## Download
+
+[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.1.1`
+
+- **macOS (Apple Silicon):** [pi-box-0.1.1-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box-0.1.1-arm64.dmg)
+- **macOS (Intel):** [pi-box-0.1.1.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box-0.1.1.dmg)
+- **Linux (AppImage):** [pi-box-0.1.1.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box-0.1.1.AppImage)
+- **Linux (deb):** [pi-box_0.1.1_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box_0.1.1_amd64.deb)
+- **Windows (installer):** [pi-box.Setup.0.1.1.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box.Setup.0.1.1.exe)
+- **Windows (portable):** [pi-box.0.1.1.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.1/pi-box.0.1.1.exe)
+
 ---
 
 ## Design
