@@ -17,7 +17,9 @@ jobs:
           - os: macos-14
             arch: arm64
             builder-args: --mac --arm64
-          - os: macos-13
+          # Intel macOS runners (macos-13) are being retired, so build x64 on
+          # the arm64 runner via cross-arch packaging.
+          - os: macos-14
             arch: x64
             builder-args: --mac --x64
           - os: ubuntu-latest
