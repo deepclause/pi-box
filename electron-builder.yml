@@ -38,6 +38,7 @@ win:
 linux:
   icon: build/icon.png
   category: Development
+  maintainer: andreas@deepclause.ai
   target:
     - AppImage
     - deb
