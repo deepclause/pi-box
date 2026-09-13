@@ -90,7 +90,8 @@ VmManager/AgentVM ◄──output / termInput──►         TerminalView (xte
 2. Status `loading` → "Booting AgentVM…".
 3. Waits for the busybox ash prompt, detected via `ESC[6n` (`\x1b[6n`), with a
    30 s timeout fallback.
-4. Injects the startup script (buffered by the ring buffer until the shell reads stdin):
+4. Answers the shell's cursor-position query with `ESC[1;1R`, then injects the
+   startup script (buffered by the ring buffer until the shell reads stdin):
    ```sh
    (ip link set eth0 up; udhcpc ...) &      # network up in background
    mkdir -p /workspace/.pi/sessions
@@ -116,6 +117,15 @@ The console stream arrives in chunks that can be **larger than 512 bytes**
 128-char carry buffer **plus the full current chunk** — never slice-then-search.
 tmux consumes pi's OSC title escape, so the old `π - …` title marker does not
 work; the footer/hint text is used instead.
+
+`ESC[6n` is busybox ash **asking** the terminal for the cursor position, not an
+announcement that it is idle. If the startup script is typed before that query
+is answered, the shell can swallow the leading bytes of the script as the
+query's response — the first line then arrives as `... ) &` and ash reports
+`syntax error: unexpected ")"`. The fix is to write the DSR answer
+(`ESC[1;1R`) before the startup script so the shell returns to its prompt
+first. This was observed only in release binaries on macOS/Windows; keep the
+answer whenever the startup injection changes.
 
 ### 4.4 Workspaces
 

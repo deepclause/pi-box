@@ -5,6 +5,11 @@ import type { VmStatus } from '../shared/types'
 // busybox ash queries the terminal for the cursor position once its prompt is
 // interactive. This tells us the shell is ready to receive the startup script.
 const SHELL_READY_MARKER = '\x1b[6n'
+// Answer to the cursor-position query (DSR). Without it the shell can consume
+// the first bytes of the startup script as the query's response, so the
+// script's first line arrives unbalanced and ash reports
+// `syntax error: unexpected ")"` (seen on macOS/Windows release builds).
+const DSR_RESPONSE = '\x1b[1;1R'
 // pi's TUI shows this startup-help hint once it has finished rendering. tmux
 // consumes pi's OSC title escape, so we can't use the old `π - …` marker. The
 // footer text is a second, always-visible signal.
@@ -88,6 +93,9 @@ export class VmManager extends EventEmitter {
       await this.waitForShellReady(30_000, token)
       if (token !== this.startToken || this.stopping) return
 
+      // Answer the shell's cursor-position query first, so it finishes that
+      // read and returns to the prompt before consuming the startup script.
+      await this.write(DSR_RESPONSE)
       // The script is consumed by the shell once it reads stdin.
       await this.write(this.buildStartupScript(mountPoint, network))
       this.scheduleReadyFallback(token)
