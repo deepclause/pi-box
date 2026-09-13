@@ -6,8 +6,9 @@ import type { VmStatus } from '../shared/types'
 // interactive. This tells us the shell is ready to receive the startup script.
 const SHELL_READY_MARKER = '\x1b[6n'
 // pi's TUI shows this startup-help hint once it has finished rendering. tmux
-// consumes pi's OSC title escape, so we can't use the old `π - …` marker.
-const PI_READY_MARKER = 'Press ctrl+o'
+// consumes pi's OSC title escape, so we can't use the old `π - …` marker. The
+// footer text is a second, always-visible signal.
+const PI_READY_MARKERS = ['Press ctrl+o', 'ctrl+c/ctrl+d']
 
 type Phase = 'booting' | 'starting' | 'ready'
 
@@ -150,12 +151,15 @@ export class VmManager extends EventEmitter {
     const text = this.decoder.decode(data, { stream: true })
     this.emit('output', text)
 
-    // Keep a small sliding window to detect markers split across chunks.
-    this.scanBuffer = (this.scanBuffer + text).slice(-512)
+    // Search a small carry buffer + the FULL current chunk. We must search the
+    // whole chunk: a single VM write can be larger than the carry buffer, and
+    // slicing first would drop markers that appear early in a large chunk.
+    const combined = this.scanBuffer + text
+    this.scanBuffer = combined.slice(-128)
 
-    if (this.phase === 'booting' && this.scanBuffer.includes(SHELL_READY_MARKER)) {
+    if (this.phase === 'booting' && combined.includes(SHELL_READY_MARKER)) {
       this.enterStartingPhase()
-    } else if (this.phase === 'starting' && this.scanBuffer.includes(PI_READY_MARKER)) {
+    } else if (this.phase === 'starting' && PI_READY_MARKERS.some((m) => combined.includes(m))) {
       this.markReady(token)
     }
   }
