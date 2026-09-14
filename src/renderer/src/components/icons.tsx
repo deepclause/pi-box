@@ -144,3 +144,40 @@ export function RefreshIcon({ size = 14, className }: IconProps) {
     </svg>
   )
 }
+
+export function PanelIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M9 4v16" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  )
+}
+
+export function EditIcon({ size = 14, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M4 20h4L20 8l-4-4L4 16v4Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path d="M13 7l4 4" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  )
+}

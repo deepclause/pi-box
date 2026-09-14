@@ -5,6 +5,7 @@ import { ChevronIcon, CloseIcon, ExternalLinkIcon, PlusIcon } from './icons'
 
 interface Props {
   state: AppState | null
+  visible: boolean
   onAdd: () => void
   onRemove: (id: string) => void
   onSelect: (id: string) => void
@@ -13,6 +14,7 @@ interface Props {
 
 export default function WorkspaceSidebar({
   state,
+  visible,
   onAdd,
   onRemove,
   onSelect,
@@ -50,7 +52,7 @@ export default function WorkspaceSidebar({
   }
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${visible ? '' : 'hidden'}`}>
       <header className="sidebar-header">
         <span className="sidebar-title">Workspaces</span>
         <button className="icon-btn accent" title="Add workspace" onClick={onAdd}>
@@ -64,6 +66,7 @@ export default function WorkspaceSidebar({
             key={ws.id}
             workspace={ws}
             active={state.activeWorkspaceId === ws.id}
+            activeWorkspaceId={state.activeWorkspaceId}
             expanded={expandedIds.has(ws.id)}
             onToggleExpand={() => toggleExpand(ws.id)}
             onSelect={() => handleSelect(ws.id)}
@@ -89,6 +92,7 @@ export default function WorkspaceSidebar({
 interface ItemProps {
   workspace: Workspace
   active: boolean
+  activeWorkspaceId: string | null
   expanded: boolean
   onToggleExpand: () => void
   onSelect: () => void
@@ -99,6 +103,7 @@ interface ItemProps {
 function WorkspaceItem({
   workspace,
   active,
+  activeWorkspaceId,
   expanded,
   onToggleExpand,
   onSelect,
@@ -131,7 +136,7 @@ function WorkspaceItem({
       </div>
       {expanded && (
         <div className="workspace-tree">
-          <FileTree workspaceId={workspace.id} />
+          <FileTree workspaceId={workspace.id} activeWorkspaceId={activeWorkspaceId} />
         </div>
       )}
     </div>

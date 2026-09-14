@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { ImageAddon } from '@xterm/addon-image'
 import type { AppState } from '@shared/types'
-import { PiMark, PlusIcon } from './icons'
+import { PiMark, PlusIcon, PanelIcon, RefreshIcon } from './icons'
 
 interface Props {
   state: AppState | null
+  sidebarVisible: boolean
+  onToggleSidebar: () => void
+  onRestart: () => void
 }
 
 const TERMINAL_THEME = {
@@ -24,12 +28,34 @@ const TERMINAL_THEME = {
   white: '#c0caf5'
 }
 
-export default function TerminalView({ state }: Props) {
+export default function TerminalView({ state, sidebarVisible, onToggleSidebar, onRestart }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const resizeTimerRef = useRef<number | null>(null)
   const lastSizeRef = useRef<{ cols: number; rows: number }>({ cols: 0, rows: 0 })
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+
+  const copySelection = useCallback(() => {
+    const term = termRef.current
+    if (!term) return
+    const selection = term.getSelection()
+    if (!selection) return
+    window.pibox.clipboardWriteText(selection).catch((err) => console.error('copy failed', err))
+  }, [])
+
+  const pasteClipboard = useCallback(() => {
+    const term = termRef.current
+    if (!term) return
+    void window.pibox
+      .clipboardReadText()
+      .then((text) => {
+        if (text) term.paste(text)
+      })
+      .catch(() => {
+        // ignore clipboard read errors
+      })
+  }, [])
 
   useEffect(() => {
     const container = containerRef.current
@@ -38,14 +64,24 @@ export default function TerminalView({ state }: Props) {
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 13,
-      lineHeight: 1.25,
+      lineHeight: 1.2,
+      letterSpacing: 0,
+      fontWeight: 400,
       fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", Menlo, Consolas, monospace',
       theme: TERMINAL_THEME,
       scrollback: 10000,
-      convertEol: false
+      convertEol: false,
+      linkHandler: {
+        activate: (_event, text) => {
+          const url = text.trim()
+          if (/^https?:\/\//i.test(url)) window.pibox.openExternal(url)
+        }
+      }
     })
     const fit = new FitAddon()
+    const imageAddon = new ImageAddon()
     term.loadAddon(fit)
+    term.loadAddon(imageAddon)
     term.open(container)
     fit.fit()
 
@@ -60,6 +96,72 @@ export default function TerminalView({ state }: Props) {
     const inputDisposable = term.onData((data) => {
       window.pibox.termInput(data)
     })
+
+    const isMac = window.pibox.platform === 'darwin'
+
+    // Normalize copy/paste across platforms without hijacking plain Ctrl+C
+    // (which stays SIGINT to the TTY). xterm invokes this handler for keydown,
+    // keyup, AND keypress, so only act on keydown — otherwise paste fires twice.
+    term.attachCustomKeyEventHandler((event) => {
+      if (event.type !== 'keydown') return true
+      const key = event.key.toLowerCase()
+
+      // Copy
+      if (isMac && event.metaKey && !event.ctrlKey && !event.shiftKey && key === 'c') {
+        copySelection()
+        return false
+      }
+      if (event.ctrlKey && event.shiftKey && key === 'c') {
+        copySelection()
+        return false
+      }
+      // Ctrl+C with a selection copies (Windows Terminal convention); plain
+      // Ctrl+C still reaches the TTY as SIGINT.
+      if (!isMac && event.ctrlKey && !event.shiftKey && key === 'c') {
+        if (term.hasSelection()) {
+          copySelection()
+          return false
+        }
+        return true
+      }
+
+      // Paste: handle shortcuts ourselves. Electron's DOM `paste` event has
+      // an empty clipboardData, so xterm's native paste is suppressed by the
+      // capture-phase listener below.
+      if (isMac && event.metaKey && !event.ctrlKey && !event.shiftKey && key === 'v') {
+        pasteClipboard()
+        return false
+      }
+      if (event.ctrlKey && event.shiftKey && key === 'v') {
+        pasteClipboard()
+        return false
+      }
+      if (!isMac && event.ctrlKey && !event.shiftKey && key === 'v') {
+        pasteClipboard()
+        return false
+      }
+      if (event.shiftKey && !event.ctrlKey && !event.metaKey && key === 'insert') {
+        pasteClipboard()
+        return false
+      }
+
+      return true
+    })
+
+    const onContextMenu = (e: MouseEvent): void => {
+      e.preventDefault()
+      setMenu({ x: e.clientX, y: e.clientY })
+    }
+    container.addEventListener('contextmenu', onContextMenu)
+
+    // Suppress xterm's native `paste` DOM listener. In Electron its
+    // clipboardData is empty, so native paste is a no-op at best and a
+    // duplicate at worst. Pasting is done via the key handler / context menu.
+    const onPaste = (e: ClipboardEvent): void => {
+      e.preventDefault()
+      e.stopImmediatePropagation()
+    }
+    container.addEventListener('paste', onPaste, true)
 
     termRef.current = term
     fitRef.current = fit
@@ -86,13 +188,15 @@ export default function TerminalView({ state }: Props) {
     return () => {
       observer.disconnect()
       if (resizeTimerRef.current !== null) window.clearTimeout(resizeTimerRef.current)
+      container.removeEventListener('contextmenu', onContextMenu)
+      container.removeEventListener('paste', onPaste, true)
       unsubscribeOutput()
       inputDisposable.dispose()
       term.dispose()
       termRef.current = null
       fitRef.current = null
     }
-  }, [])
+  }, [copySelection, pasteClipboard])
 
   useEffect(() => {
     if (state?.status === 'ready' && termRef.current && fitRef.current) {
@@ -115,6 +219,13 @@ export default function TerminalView({ state }: Props) {
     <section className="terminal-pane">
       <header className="terminal-header">
         <div className="terminal-header-left">
+          <button
+            className="icon-btn"
+            title={sidebarVisible ? 'Hide workspaces bar' : 'Show workspaces bar'}
+            onClick={onToggleSidebar}
+          >
+            <PanelIcon size={15} />
+          </button>
           <PiMark size={16} className="pi-mark" />
           <span className="terminal-title">pi</span>
           <span className="status-pill" data-status={state?.status ?? 'loading'}>
@@ -126,12 +237,52 @@ export default function TerminalView({ state }: Props) {
           <button className="icon-btn accent" title="New shell window (Ctrl+B c)" onClick={newShell}>
             <PlusIcon size={14} />
           </button>
-          <span className="mount-arrow">←</span>
+          <button className="icon-btn" title="Restart VM" onClick={onRestart}>
+            <RefreshIcon size={14} />
+          </button>
           {state?.activeMountPath ?? 'no workspace'}
+          <span className="mount-arrow">→</span>
           <span className="mount-point">{state?.mountPoint ?? '/workspace'}</span>
         </span>
       </header>
       <div ref={containerRef} className="terminal-container" />
+
+      {menu && (
+        <div
+          className="context-menu-overlay"
+          onClick={() => setMenu(null)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            setMenu(null)
+          }}
+        >
+          <div
+            className="context-menu"
+            style={{ left: menu.x, top: menu.y }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="context-menu-item"
+              disabled={!termRef.current?.hasSelection()}
+              onClick={() => {
+                copySelection()
+                setMenu(null)
+              }}
+            >
+              Copy
+            </button>
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                pasteClipboard()
+                setMenu(null)
+              }}
+            >
+              Paste
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

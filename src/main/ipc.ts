@@ -1,4 +1,5 @@
-import { dialog, ipcMain, shell, type BrowserWindow } from 'electron'
+import { clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
+import path from 'node:path'
 import type { AppState, OpenResult } from '../shared/types'
 import type { VmManager } from './vm'
 import type { WorkspaceStore } from './workspaces'
@@ -22,6 +23,35 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle('pibox:restartVm', async () => {
     await ctx.restartVm()
     return ctx.buildState()
+  })
+
+  ipcMain.handle('pibox:editFile', async (_event, workspaceId: string, hostPath: string) => {
+    const ws = store.get(workspaceId)
+    if (!ws) return { ok: false, error: 'Workspace not found' }
+
+    const active = store.getActive()
+    if (!active || active.id !== workspaceId) {
+      return { ok: false, error: 'Workspace is not mounted' }
+    }
+
+    const base = path.resolve(ws.path)
+    const target = path.resolve(hostPath)
+    const rel = path.relative(base, target)
+    if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) {
+      return { ok: false, error: 'File is outside the workspace' }
+    }
+
+    const guestRel = rel.split(path.sep).join('/')
+    await vm.openFileInVi(`${MOUNT_POINT}/${guestRel}`)
+    return { ok: true }
+  })
+
+  ipcMain.handle('pibox:clipboardWriteText', (_event, text: string) => {
+    return clipboard.writeText(text)
+  })
+
+  ipcMain.handle('pibox:clipboardReadText', () => {
+    return clipboard.readText()
   })
 
   ipcMain.handle('pibox:addWorkspace', async () => {

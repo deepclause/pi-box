@@ -13,17 +13,12 @@ export default function LoadingScreen({ status, message, onRestart }: Props) {
 
   return (
     <div className="loading-screen">
-      <div className="loading-glow" />
       <div className="loading-brand">
         <img className="loading-logo" src="./logo.png" alt="DeepClause" draggable={false} />
       </div>
 
       {!failed ? (
         <>
-          <div className="loading-orb">
-            <div className="loading-orb-ring" />
-            <div className="loading-orb-core" />
-          </div>
           <div className="loading-text">{label}</div>
           <div className="loading-dots">
             <span />

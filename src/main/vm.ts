@@ -110,6 +110,18 @@ export class VmManager extends EventEmitter {
     return this.vm ? this.vm.writeToStdin(data) : Promise.resolve()
   }
 
+  /**
+   * Open a guest file in vi inside a new tmux window. Uses tmux's command
+   * prompt (prefix + :) so vi gets a real PTY without racing a fresh shell's
+   * prompt. `vmPath` is the path inside the VM (e.g. `/workspace/foo.txt`).
+   */
+  async openFileInVi(vmPath: string): Promise<void> {
+    if (!this.vm || this.phase !== 'ready') return
+    await this.write('\x02:')
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    await this.write(`new-window "vi ${vmPath}"\r`)
+  }
+
   async stop(): Promise<void> {
     this.stopping = true
     this.clearReadyFallback()
@@ -127,6 +139,8 @@ export class VmManager extends EventEmitter {
 
   private buildStartupScript(mountPoint: string, network: boolean): string {
     const piDir = `${mountPoint}/.pi`
+    const piBoxDir = `${mountPoint}/.pi-box`
+    const configFile = `${piBoxDir}/config`
     const lines: string[] = []
 
     if (network) {
@@ -144,11 +158,20 @@ export class VmManager extends EventEmitter {
     lines.push('export PI_SKIP_VERSION_CHECK=1')
     lines.push('export PI_TELEMETRY=0')
     lines.push('export LANG=C.UTF-8')
+    // Terminal capability hints: the guest has no terminfo database, so tell
+    // pi/tools explicitly that the terminal supports truecolor and the kitty
+    // image protocol (the renderer's ImageAddon handles the latter).
+    lines.push('export COLORTERM=truecolor')
+    lines.push('export PI_TRUE_COLOR=1')
+    lines.push('export PI_IMAGE_PROTOCOL=kitty')
+    // Source the user's `.pi-box/config` after the defaults so it can override
+    // them (extra env vars, or PI_BOX_TMUX_CONF pointing at a custom tmux conf).
+    lines.push(`if [ -f ${configFile} ]; then . ${configFile}; fi`)
     lines.push(`cd ${mountPoint}`)
     // Guest-side resize daemon (TIOCSWINSZ on the console). tmux then
     // propagates the size to pi. Multiplexing is handled by tmux itself.
     lines.push(`python3 ${piDir}/tty-resize-daemon.py &`)
-    lines.push(`tmux -f ${piDir}/tmux.conf new-session -s pi -n pi pi`)
+    lines.push(`tmux -f "\${PI_BOX_TMUX_CONF:-${piDir}/tmux.conf}" new-session -s pi -n pi pi`)
 
     return lines.join('\n') + '\n'
   }

@@ -13,7 +13,8 @@ const IGNORED_DIR_NAMES = new Set(['.git', 'node_modules', '__pycache__', '.DS_S
  * Guest-side helpers seeded into every workspace's `.pi`:
  *  - `tty-resize-daemon.py` applies the host-written `.pi/tty-size` to the VM
  *    console (TIOCSWINSZ), which tmux then propagates to pi.
- *  - `tmux.conf` turns on mouse support and a sane scrollback limit.
+ *  - `tmux.conf` is the app's base tmux config (mouse off so xterm selection
+ *    works; power users can override via `.pi-box/config`).
  *
  * Multiplexing (extra shells) is handled natively by tmux, not by us.
  */
@@ -40,9 +41,27 @@ while True:
     time.sleep(1.0)
 `
 
-const TMUX_CONF = `set -g mouse on
-set -g history-limit 10000
-set -g default-terminal "screen-256color"
+const TMUX_CONF = `set -g history-limit 10000
+set -g default-terminal "xterm-256color"
+set -g extended-keys on
+set -g allow-passthrough on
+`
+
+/**
+ * Per-workspace, user-editable startup config. Sourced by the guest shell
+ * before tmux launches, so power users can export extra env vars or point
+ * `PI_BOX_TMUX_CONF` at a custom tmux config. Never overwritten once created.
+ */
+const PIBOX_CONFIG = `# pi-box startup config — sourced before tmux launches.
+# This file is yours to edit; the app never overwrites it.
+#
+# Environment variables set here are inherited by tmux and pi:
+#   export PI_TRUE_COLOR=1
+#   export MY_CUSTOM_VAR=hello
+#
+# Use a custom tmux config (optional). Leave unset to use the app default
+# /workspace/.pi/tmux.conf:
+#   PI_BOX_TMUX_CONF=/workspace/.pi-box/tmux.conf
 `
 
 interface StoreShape {
@@ -92,6 +111,7 @@ export class WorkspaceStore {
 
     for (const ws of this.data.workspaces) {
       this.ensurePiDir(ws.id)
+      this.ensureConfig(ws.id)
     }
   }
 
@@ -156,6 +176,7 @@ export class WorkspaceStore {
     this.data.lastActiveId = ws.id
     this.save()
     this.ensurePiDir(ws.id)
+    this.ensureConfig(ws.id)
     return ws
   }
 
@@ -177,6 +198,7 @@ export class WorkspaceStore {
     this.data.lastActiveId = id
     this.save()
     this.ensurePiDir(id)
+    this.ensureConfig(id)
     return true
   }
 
@@ -218,6 +240,26 @@ export class WorkspaceStore {
       }
     } catch (err) {
       console.error('Failed to prepare .pi directory:', err)
+    }
+  }
+
+  /**
+   * Seed the user-editable `.pi-box/config` startup file. Unlike `.pi/*`, this
+   * file is created once and never refreshed, so user edits survive restarts.
+   */
+  ensureConfig(id: string): void {
+    const ws = this.get(id)
+    if (!ws) return
+
+    try {
+      const boxDir = path.join(ws.path, '.pi-box')
+      fs.mkdirSync(boxDir, { recursive: true })
+      const configPath = path.join(boxDir, 'config')
+      if (!fs.existsSync(configPath)) {
+        fs.writeFileSync(configPath, PIBOX_CONFIG, 'utf8')
+      }
+    } catch (err) {
+      console.error('Failed to prepare .pi-box config:', err)
     }
   }
 

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { FileNode } from '@shared/types'
-import { ChevronIcon, FileIcon, FolderIcon } from './icons'
+import { ChevronIcon, EditIcon, FileIcon, FolderIcon } from './icons'
 
 interface Props {
   workspaceId: string
+  activeWorkspaceId: string | null
 }
 
-export default function FileTree({ workspaceId }: Props) {
+export default function FileTree({ workspaceId, activeWorkspaceId }: Props) {
   const [nodes, setNodes] = useState<FileNode[] | null>(null)
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function FileTree({ workspaceId }: Props) {
   return (
     <ul className="file-tree">
       {nodes.map((node) => (
-        <TreeNode key={node.path} workspaceId={workspaceId} node={node} depth={0} />
+        <TreeNode key={node.path} workspaceId={workspaceId} activeWorkspaceId={activeWorkspaceId} node={node} depth={0} />
       ))}
     </ul>
   )
@@ -43,11 +44,12 @@ export default function FileTree({ workspaceId }: Props) {
 
 interface NodeProps {
   workspaceId: string
+  activeWorkspaceId: string | null
   node: FileNode
   depth: number
 }
 
-function TreeNode({ workspaceId, node, depth }: NodeProps) {
+function TreeNode({ workspaceId, activeWorkspaceId, node, depth }: NodeProps) {
   const isDir = node.type === 'directory'
   const [open, setOpen] = useState(false)
   const [children, setChildren] = useState<FileNode[] | null>(node.children ?? null)
@@ -65,6 +67,10 @@ function TreeNode({ workspaceId, node, depth }: NodeProps) {
     }
   }
 
+  const edit = (): void => {
+    void window.pibox.editFile(workspaceId, node.path).catch((err) => console.error(err))
+  }
+
   return (
     <li>
       <div
@@ -80,12 +86,24 @@ function TreeNode({ workspaceId, node, depth }: NodeProps) {
           {isDir ? <FolderIcon size={13} /> : <FileIcon size={13} />}
         </span>
         <span className="tree-name">{node.name}</span>
+        {!isDir && activeWorkspaceId === workspaceId && (
+          <button
+            className="icon-btn tree-edit-btn"
+            title="Edit file in vi"
+            onClick={(e) => {
+              e.stopPropagation()
+              edit()
+            }}
+          >
+            <EditIcon size={12} />
+          </button>
+        )}
       </div>
 
       {isDir && open && (
         <ul className="file-tree">
           {children?.map((child) => (
-            <TreeNode key={child.path} workspaceId={workspaceId} node={child} depth={depth + 1} />
+            <TreeNode key={child.path} workspaceId={workspaceId} activeWorkspaceId={activeWorkspaceId} node={child} depth={depth + 1} />
           ))}
           {children !== null && children !== undefined && children.length === 0 && (
             <li className="tree-row" style={{ paddingLeft: (depth + 1) * 14 + 6 }}>

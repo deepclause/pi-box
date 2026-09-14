@@ -6,6 +6,13 @@ import TerminalView from './components/TerminalView'
 
 export default function App() {
   const [state, setState] = useState<AppState | null>(null)
+  const [sidebarVisible, setSidebarVisible] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('pibox.sidebar') !== 'hidden'
+    } catch {
+      return true
+    }
+  })
 
   useEffect(() => {
     let mounted = true
@@ -47,6 +54,18 @@ export default function App() {
     window.pibox.restart().catch((err) => console.error(err))
   }, [])
 
+  const toggleSidebar = useCallback(() => {
+    setSidebarVisible((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('pibox.sidebar', next ? 'visible' : 'hidden')
+      } catch {
+        // ignore storage errors
+      }
+      return next
+    })
+  }, [])
+
   const ready = state?.status === 'ready'
 
   return (
@@ -54,12 +73,18 @@ export default function App() {
       <div className="main-layout">
         <WorkspaceSidebar
           state={state}
+          visible={sidebarVisible}
           onAdd={addWorkspace}
           onRemove={removeWorkspace}
           onSelect={setActiveWorkspace}
           onOpenFolder={openFolder}
         />
-        <TerminalView state={state} />
+        <TerminalView
+          state={state}
+          sidebarVisible={sidebarVisible}
+          onToggleSidebar={toggleSidebar}
+          onRestart={restart}
+        />
       </div>
 
       {!ready && <LoadingScreen status={state?.status} message={state?.statusMessage} onRestart={restart} />}
