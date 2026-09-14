@@ -25,14 +25,14 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 ## Download
 
-[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.1.4`
+[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.1.5`
 
-- **macOS (Apple Silicon):** [pi-box-0.1.4-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box-0.1.4-arm64.dmg)
-- **macOS (Intel):** [pi-box-0.1.4.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box-0.1.4.dmg)
-- **Linux (AppImage):** [pi-box-0.1.4.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box-0.1.4.AppImage)
-- **Linux (deb):** [pi-box_0.1.4_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box_0.1.4_amd64.deb)
-- **Windows (installer):** [pi-box.Setup.0.1.4.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box.Setup.0.1.4.exe)
-- **Windows (portable):** [pi-box.0.1.4.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box.0.1.4.exe)
+- **macOS (Apple Silicon):** [pi-box-0.1.5-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.5/pi-box-0.1.5-arm64.dmg)
+- **macOS (Intel):** [pi-box-0.1.5.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.5/pi-box-0.1.5.dmg)
+- **Linux (AppImage):** [pi-box-0.1.5.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.1.5/pi-box-0.1.5.AppImage)
+- **Linux (deb):** [pi-box_0.1.5_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.1.5/pi-box_0.1.5_amd64.deb)
+- **Windows (installer):** [pi-box.Setup.0.1.5.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.5/pi-box.Setup.0.1.5.exe)
+- **Windows (portable):** [pi-box.0.1.5.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.5/pi-box.0.1.5.exe)
 
 > **macOS / Windows note:** these builds are **unsigned and not notarized**,
 > and may still have issues (Gatekeeper prompts or odd errors). If a binary
