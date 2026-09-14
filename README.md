@@ -25,14 +25,14 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 ## Download
 
-[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.1.3`
+[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.1.4`
 
-- **macOS (Apple Silicon):** [pi-box-0.1.3-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box-0.1.3-arm64.dmg)
-- **macOS (Intel):** [pi-box-0.1.3.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box-0.1.3.dmg)
-- **Linux (AppImage):** [pi-box-0.1.3.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box-0.1.3.AppImage)
-- **Linux (deb):** [pi-box_0.1.3_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box_0.1.3_amd64.deb)
-- **Windows (installer):** [pi-box.Setup.0.1.3.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box.Setup.0.1.3.exe)
-- **Windows (portable):** [pi-box.0.1.3.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box.0.1.3.exe)
+- **macOS (Apple Silicon):** [pi-box-0.1.4-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box-0.1.4-arm64.dmg)
+- **macOS (Intel):** [pi-box-0.1.4.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box-0.1.4.dmg)
+- **Linux (AppImage):** [pi-box-0.1.4.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box-0.1.4.AppImage)
+- **Linux (deb):** [pi-box_0.1.4_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box_0.1.4_amd64.deb)
+- **Windows (installer):** [pi-box.Setup.0.1.4.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box.Setup.0.1.4.exe)
+- **Windows (portable):** [pi-box.0.1.4.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.4/pi-box.0.1.4.exe)
 
 > **macOS / Windows note:** these builds are **unsigned and not notarized**,
 > and may still have issues (Gatekeeper prompts or odd errors). If a binary
@@ -51,6 +51,21 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 > ```
 >
 > (adjust the path if you moved the app elsewhere).
+
+## Work in progress
+
+Planned `agentvm` features, designed in
+[`deepclause/agentvm` → `docs/network-persistence-proposal.md`](https://github.com/deepclause/agentvm/blob/main/docs/network-persistence-proposal.md):
+
+- **Network on/off toggle** (no reboot) — host-side `setNetworkEnabled()`, wired
+  to the app's network button.
+- **Firewall rules** — ordered incoming/outgoing allow/deny rules in the NAT,
+  live-editable and persisted per workspace.
+- **Port forwarding** — expose guest servers on host ports; add/remove forwards
+  at runtime without restarting the VM.
+- **Persistent root filesystem** — a per-workspace overlay (image as lower, a
+  9p-backed dir in `.pi-box/overlay` as upper) so `apk add`, `/etc`, `/root`,
+  `/tmp`, and pi's caches survive restarts.
 
 ---
 
