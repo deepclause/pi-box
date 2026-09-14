@@ -25,18 +25,26 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 ## Download
 
-[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.1.2`
+[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.1.3`
 
-- **macOS (Apple Silicon):** [pi-box-0.1.2-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box-0.1.2-arm64.dmg)
-- **macOS (Intel):** [pi-box-0.1.2.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box-0.1.2.dmg)
-- **Linux (AppImage):** [pi-box-0.1.2.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box-0.1.2.AppImage)
-- **Linux (deb):** [pi-box_0.1.2_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box_0.1.2_amd64.deb)
-- **Windows (installer):** [pi-box.Setup.0.1.2.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box.Setup.0.1.2.exe)
-- **Windows (portable):** [pi-box.0.1.2.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.2/pi-box.0.1.2.exe)
+- **macOS (Apple Silicon):** [pi-box-0.1.3-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box-0.1.3-arm64.dmg)
+- **macOS (Intel):** [pi-box-0.1.3.dmg](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box-0.1.3.dmg)
+- **Linux (AppImage):** [pi-box-0.1.3.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box-0.1.3.AppImage)
+- **Linux (deb):** [pi-box_0.1.3_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box_0.1.3_amd64.deb)
+- **Windows (installer):** [pi-box.Setup.0.1.3.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box.Setup.0.1.3.exe)
+- **Windows (portable):** [pi-box.0.1.3.exe](https://github.com/deepclause/pi-box/releases/download/v0.1.3/pi-box.0.1.3.exe)
 
-> **macOS note:** the builds are currently **unsigned and not notarized**. macOS
-> Gatekeeper may block the app on first launch or cause odd errors. If that
-> happens, remove the quarantine attribute:
+> **macOS / Windows note:** these builds are **unsigned and not notarized**,
+> and may still have issues (Gatekeeper prompts or odd errors). If a binary
+> misbehaves, running from source is usually smoother:
+>
+> ```sh
+> npm install
+> npm run dev
+> ```
+>
+> On macOS, if Gatekeeper blocks the app on first launch, you can also remove
+> the quarantine attribute:
 >
 > ```sh
 > xattr -dr com.apple.quarantine /Applications/pi-box.app
