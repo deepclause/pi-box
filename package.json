@@ -1,6 +1,6 @@
 {
   "name": "pi-box",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Native desktop app that wraps AgentVM: a terminal into the VM plus mountable workspace folders.",
   "main": "./out/main/index.js",
   "author": "pi-box",
@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@xterm/addon-image": "^0.9.0",
-    "deepclause-agentvm": "0.2.1"
+    "deepclause-agentvm": "0.2.2"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
