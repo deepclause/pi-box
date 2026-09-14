@@ -8,11 +8,17 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 - a **terminal** that boots straight into the **pi coding agent** (inside tmux),
 - **extra shell sessions** via tmux windows (a “new shell” button sends `Ctrl+B c`),
+- a full-featured **terminal**: truecolor, inline images (kitty protocol),
+  clickable OSC 8 hyperlinks, and clipboard copy/paste (keyboard + right-click menu),
 - **workspaces**: host folders that are mounted into the VM,
 - a per-workspace **`.pi`** directory so pi's model config, credentials and
   sessions live in the workspace and survive reboots,
-- a **file tree** view of each workspace,
-- an **open in file manager** action (`open` / `xdg-open` / Explorer depending on OS).
+- a per-workspace **`.pi-box/config`** startup file for power users (extra env
+  vars or a custom tmux config),
+- a **file tree** view of each workspace, with a **per-file edit** action that
+  opens the file in `vi` inside a new tmux window,
+- an **open in file manager** action (`open` / `xdg-open` / Explorer depending on OS),
+- a **collapsible workspaces sidebar** and a **restart** button in the terminal header.
 
 ![status](https://img.shields.io/badge/status-prototype-orange)
 
@@ -88,7 +94,8 @@ On top of Electron:
 
 - **electron-vite** — build tooling for main/preload/renderer with HMR.
 - **React + TypeScript** — UI.
-- **@xterm/xterm + @xterm/addon-fit** — terminal emulator.
+- **@xterm/xterm + @xterm/addon-fit + @xterm/addon-image** — terminal
+  emulator (resize, inline images).
 - No backend/server — renderer talks to the main process over Electron IPC.
 
 ### Process model
@@ -110,7 +117,8 @@ On top of Electron:
 - **`VmManager`** owns a single `AgentVM` instance in *interactive/raw mode*.
   `onStdout`/`onStderr` are forwarded to the renderer as decoded strings;
   keystrokes from xterm are written back with `vm.writeToStdin()`. Once the VM
-  console shell is up, VmManager injects a startup script that starts a tiny
+  console shell is up, VmManager injects a startup script that sources the
+  workspace's `.pi-box/config` (power-user env/tmux overrides), starts a tiny
   **resize daemon** (applies the host-written `.pi/tty-size` via TIOCSWINSZ)
   and then launches **tmux** with `pi` in the first window. tmux handles
   terminal multiplexing natively, so extra shells are just new tmux windows
@@ -179,9 +187,9 @@ npm install
 npm run dev
 ```
 
-> The `deepclause-agentvm` dependency points at `file:../agentvm`, so the app
-> uses the local AgentVM checkout (including its 320 MB
-> `agentvm-alpine-python.wasm` image).
+> `deepclause-agentvm` is an exact npm pin (currently `0.2.2`), so the app uses
+> the published package (including its ~322 MB `agentvm-alpine-python.wasm`
+> image).
 
 ### Linux sandbox note
 
@@ -216,21 +224,22 @@ Release binaries are built by GitHub Actions on every published release — see
 
 ## Implementation plan / roadmap
 
-- [x] **v0.1 (this scaffold)** — loading screen, pi auto-start with splash
-      until ready, per-workspace `.pi` (config + sessions), workspace list +
-      lazy file tree, default workspace, add/remove/switch workspaces, open
-      folder in OS file manager, last workspace restored on launch, extra shell
+- [x] **v0.1 scaffold** — loading screen, pi auto-start with splash until
+      ready, per-workspace `.pi` (config + sessions), workspace list + lazy
+      file tree, default workspace, add/remove/switch workspaces, open folder
+      in OS file manager, last workspace restored on launch, extra shell
       sessions via tmux windows.
-- [ ] **Packaging** — electron-builder for macOS (dmg), Windows (nsis) and
-      Linux (AppImage/deb), bundling the wasm image.
-- [ ] **PTY-backed terminal** — pi already runs inside tmux, which provides PTYs
-      for its panes; further terminal polish (e.g. custom keybindings, richer
-      status line) can build on that.
-- [ ] **Per-file actions** — open/rename/delete in the tree, reveal in file
-      manager.
+- [x] **Packaging** — electron-builder releases for macOS (dmg), Windows
+      (nsis/portable) and Linux (AppImage/deb) via GitHub Actions.
+- [x] **Terminal fidelity** — truecolor, inline images (kitty protocol), OSC 8
+      hyperlinks, clipboard copy/paste, extended keys.
+- [ ] **Per-file actions** — editing in `vi` is done; open/rename/delete in the
+      tree are still pending.
 - [ ] **Workspace settings UI** — edit `.pi/settings.json`, pick provider/model,
       manage sessions from the sidebar.
-- [ ] **VM controls** — restart, network toggle, resource limits, boot logs.
+- [ ] **VM controls** — restart button done; network toggle, firewall, port
+      forwarding and a persistent root fs are in progress (see “Work in
+      progress” above).
 
 ## Known limitations
 
@@ -240,9 +249,10 @@ Release binaries are built by GitHub Actions on every published release — see
   preview1: mode changes (`fs.chmod`/`fs.fchmod`) return `EPROTO` and creation
   mode bits are dropped. pi's auth save path is unaffected, but downloaded
   helper binaries (fd/ripgrep) and extension temp folders rely on chmod.
-- First startup of a workspace may take longer while pi downloads its helper
-  binaries (fd/ripgrep) into `.pi`; subsequent boots reuse the cache.
+- pi runs with `PI_OFFLINE=1`, so it skips its startup network downloads; fd
+  and ripgrep are therefore not downloaded by default (pi shows an offline
+  warning) until offline mode is disabled.
 - Switching the active workspace restarts the VM (and therefore pi).
-- The 320 MB wasm image must be read into memory on every boot (that's what the
+- The ~322 MB wasm image must be read into memory on every boot (that's what the
   loading screen is for).
 - AgentVM itself is experimental (see its README disclaimer).
