@@ -1,6 +1,6 @@
 import { clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
 import path from 'node:path'
-import type { AppState, OpenResult } from '../shared/types'
+import type { AppState, FirewallRule, OpenResult } from '../shared/types'
 import type { VmManager } from './vm'
 import type { WorkspaceStore } from './workspaces'
 
@@ -52,6 +52,42 @@ export function registerIpc(ctx: IpcContext): void {
 
   ipcMain.handle('pibox:clipboardReadText', () => {
     return clipboard.readText()
+  })
+
+  ipcMain.handle('pibox:toggleNetwork', async () => {
+    await vm.toggleNetwork()
+    ctx.broadcast()
+    return ctx.buildState()
+  })
+
+  ipcMain.handle('pibox:addFirewallRule', (_event, rule: FirewallRule) => {
+    vm.addFirewallRule(rule)
+    ctx.broadcast()
+    return ctx.buildState()
+  })
+
+  ipcMain.handle('pibox:removeFirewallRule', (_event, id: string) => {
+    vm.removeFirewallRule(id)
+    ctx.broadcast()
+    return ctx.buildState()
+  })
+
+  ipcMain.handle('pibox:clearFirewall', () => {
+    vm.clearFirewall()
+    ctx.broadcast()
+    return ctx.buildState()
+  })
+
+  ipcMain.handle('pibox:addPortForward', async (_event, config: { hostPort: number; guestPort: number; guestHost?: string }) => {
+    await vm.addPortForward(config)
+    ctx.broadcast()
+    return ctx.buildState()
+  })
+
+  ipcMain.handle('pibox:removePortForward', (_event, hostPort: number) => {
+    vm.removePortForward(hostPort)
+    ctx.broadcast()
+    return ctx.buildState()
   })
 
   ipcMain.handle('pibox:addWorkspace', async () => {

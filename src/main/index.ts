@@ -18,7 +18,10 @@ function buildState(): AppState {
     workspaces: store.list(),
     activeWorkspaceId: active?.id ?? null,
     activeMountPath: active?.path ?? null,
-    mountPoint: MOUNT_POINT
+    mountPoint: MOUNT_POINT,
+    networkEnabled: vm.networkEnabled,
+    portForwards: vm.portForwards,
+    firewallRules: vm.firewallRules
   }
 }
 
@@ -114,6 +117,15 @@ app.on('activate', () => {
   }
 })
 
-app.on('before-quit', () => {
-  void vm.stop()
+let quitting = false
+
+app.on('before-quit', (event) => {
+  if (quitting) return
+  // Wait for the VM to stop (which flushes the persistent-root ext4/overlay
+  // page cache via sync) before actually quitting.
+  event.preventDefault()
+  quitting = true
+  void vm.stop().finally(() => {
+    app.quit()
+  })
 })

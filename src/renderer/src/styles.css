@@ -295,6 +295,216 @@ body {
   font-size: 12px;
 }
 
+/* ---------- Network settings modal ---------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 14, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.modal {
+  width: 460px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-section-title {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.switch-row-label {
+  flex: 1;
+}
+
+.switch {
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.switch.on {
+  background: rgba(158, 206, 106, 0.25);
+  border-color: rgba(158, 206, 106, 0.5);
+}
+
+.switch.on .switch-knob {
+  transform: translateX(14px);
+  background: var(--green);
+}
+
+.switch-state {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
+.settings-row-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-empty {
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 2px 0;
+}
+
+.form-row {
+  display: flex;
+  gap: 6px;
+}
+
+.field {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 6px 8px;
+  width: 80px;
+}
+
+.field.grow {
+  flex: 1;
+  width: auto;
+}
+
+.field.port {
+  width: 60px;
+}
+
+.field.auto {
+  width: auto;
+}
+
+.field::placeholder {
+  color: var(--text-faint);
+}
+
+.btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 12px;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  flex-shrink: 0;
+}
+
+.btn:hover {
+  background: var(--surface-hover);
+}
+
+.btn.primary {
+  background: rgba(122, 162, 247, 0.14);
+  border-color: rgba(122, 162, 247, 0.35);
+  color: var(--accent);
+}
+
+.btn.primary:hover {
+  background: rgba(122, 162, 247, 0.24);
+}
+
+.badge.allow {
+  color: var(--green);
+}
+
+.badge.deny {
+  color: var(--red);
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
 /* ---------- File tree ---------- */
 
 .file-tree {
@@ -448,6 +658,47 @@ body {
 }
 
 .status-dot[data-status='stopped'] {
+  background: var(--text-faint);
+}
+
+.network-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.network-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.network-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.network-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.network-dot[data-up='true'] {
+  background: var(--green);
+}
+
+.network-dot[data-up='false'] {
   background: var(--text-faint);
 }
 

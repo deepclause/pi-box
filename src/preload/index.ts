@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, shell } from 'electron'
-import type { AppState, FileNode, OpenResult } from '../shared/types'
+import type { AppState, FileNode, FirewallRule, OpenResult } from '../shared/types'
 
 export interface PiBoxApi {
   getState(): Promise<AppState>
@@ -16,6 +16,12 @@ export interface PiBoxApi {
   clipboardWriteText(text: string): Promise<void>
   openExternal(url: string): void
   platform: string
+  toggleNetwork(): Promise<AppState>
+  addFirewallRule(rule: FirewallRule): Promise<AppState>
+  removeFirewallRule(id: string): Promise<AppState>
+  clearFirewall(): Promise<AppState>
+  addPortForward(config: { hostPort: number; guestPort: number; guestHost?: string }): Promise<AppState>
+  removePortForward(hostPort: number): Promise<AppState>
   onState(cb: (state: AppState) => void): () => void
   onOutput(cb: (data: string) => void): () => void
 }
@@ -37,6 +43,12 @@ const api: PiBoxApi = {
     void shell.openExternal(url)
   },
   platform: process.platform,
+  toggleNetwork: () => ipcRenderer.invoke('pibox:toggleNetwork'),
+  addFirewallRule: (rule) => ipcRenderer.invoke('pibox:addFirewallRule', rule),
+  removeFirewallRule: (id) => ipcRenderer.invoke('pibox:removeFirewallRule', id),
+  clearFirewall: () => ipcRenderer.invoke('pibox:clearFirewall'),
+  addPortForward: (config) => ipcRenderer.invoke('pibox:addPortForward', config),
+  removePortForward: (hostPort) => ipcRenderer.invoke('pibox:removePortForward', hostPort),
 
   onState: (cb) => {
     const listener = (_event: Electron.IpcRendererEvent, state: AppState): void => cb(state)

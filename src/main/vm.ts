@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { AgentVM } from 'deepclause-agentvm'
-import type { VmStatus } from '../shared/types'
+import type { FirewallRule, VmStatus } from '../shared/types'
 
 // busybox ash queries the terminal for the cursor position once its prompt is
 // interactive. This tells us the shell is ready to receive the startup script.
@@ -38,6 +38,7 @@ export class VmManager extends EventEmitter {
 
   private _status: VmStatus = 'loading'
   private _statusMessage = 'Starting…'
+  private _firewallRules: FirewallRule[] = []
 
   get status(): VmStatus {
     return this._status
@@ -45,6 +46,18 @@ export class VmManager extends EventEmitter {
 
   get statusMessage(): string {
     return this._statusMessage
+  }
+
+  get networkEnabled(): boolean {
+    return this.vm ? this.vm.networkEnabled : true
+  }
+
+  get portForwards(): Array<{ hostPort: number; guestPort: number; guestHost?: string }> {
+    return this.vm ? this.vm.listPortForwards() : []
+  }
+
+  get firewallRules(): FirewallRule[] {
+    return [...this._firewallRules]
   }
 
   private setStatus(status: VmStatus, message?: string): void {
@@ -69,7 +82,10 @@ export class VmManager extends EventEmitter {
     const vm = new AgentVM({
       network,
       interactive: true,
-      mounts
+      mounts,
+      // Persist the guest root filesystem per workspace via the ext4 overlay
+      // (agentvm 0.3.0). The overlay image lives at <workspace>/.agentvm/upper.img.
+      persistentRoot: true
     })
 
     vm.onStdout = (data: Uint8Array) => this.handleOutput(token, data)
@@ -84,6 +100,9 @@ export class VmManager extends EventEmitter {
     }
 
     this.vm = vm
+    if (this._firewallRules.length > 0) {
+      vm.setFirewall({ default: 'allow', rules: this._firewallRules })
+    }
     try {
       await vm.start()
       if (token !== this.startToken || this.stopping) return
@@ -122,6 +141,42 @@ export class VmManager extends EventEmitter {
     await this.write(`new-window "vi ${vmPath}"\r`)
   }
 
+  /** Toggle guest networking at runtime (no VM restart). */
+  async toggleNetwork(): Promise<void> {
+    if (!this.vm) return
+    this.vm.setNetworkEnabled(!this.vm.networkEnabled)
+    this.emit('status', this._status, this._statusMessage)
+  }
+
+  /** Install ordered firewall rules (first match wins). */
+  private applyFirewall(): void {
+    this.vm?.setFirewall({ default: 'allow', rules: this._firewallRules })
+  }
+
+  addFirewallRule(rule: FirewallRule): void {
+    this._firewallRules = [...this._firewallRules.filter((r) => r.id !== rule.id), rule]
+    this.applyFirewall()
+  }
+
+  removeFirewallRule(id: string): void {
+    this._firewallRules = this._firewallRules.filter((r) => r.id !== id)
+    this.applyFirewall()
+  }
+
+  clearFirewall(): void {
+    this._firewallRules = []
+    this.vm?.clearFirewall()
+  }
+
+  /** Expose a guest TCP server on a host port at runtime. */
+  addPortForward(config: { hostPort: number; guestPort: number; guestHost?: string }): Promise<unknown> {
+    return this.vm ? this.vm.addPortForward(config) : Promise.reject(new Error('VM not ready'))
+  }
+
+  removePortForward(hostPort: number): boolean {
+    return this.vm ? this.vm.removePortForward(hostPort) : false
+  }
+
   async stop(): Promise<void> {
     this.stopping = true
     this.clearReadyFallback()
@@ -145,7 +200,7 @@ export class VmManager extends EventEmitter {
 
     if (network) {
       // Bring the NIC up in the background so the pi terminal stays clean.
-      lines.push('(ip link set eth0 up; udhcpc -i eth0 -s /sbin/udhcpc.script >/dev/null 2>&1) &')
+      lines.push('(ip link set eth0 up; udhcpc -i eth0 >/dev/null 2>&1) &')
     }
 
     lines.push(`mkdir -p ${piDir}/sessions`)

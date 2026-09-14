@@ -23,6 +23,24 @@ export interface AppState {
   activeWorkspaceId: string | null
   activeMountPath: string | null
   mountPoint: string
+  networkEnabled: boolean
+  portForwards: PortForward[]
+  firewallRules: FirewallRule[]
+}
+
+export interface PortForward {
+  hostPort: number
+  guestPort: number
+  guestHost?: string
+}
+
+export interface FirewallRule {
+  id: string
+  direction: 'in' | 'out'
+  protocol: 'tcp' | 'udp'
+  remote: string
+  port: string
+  action: 'allow' | 'deny'
 }
 
 export interface OpenResult {

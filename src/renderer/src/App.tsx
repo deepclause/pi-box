@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { AppState } from '@shared/types'
+import type { AppState, FirewallRule } from '@shared/types'
 import LoadingScreen from './components/LoadingScreen'
+import NetworkSettings from './components/NetworkSettings'
 import WorkspaceSidebar from './components/WorkspaceSidebar'
 import TerminalView from './components/TerminalView'
 
@@ -13,6 +14,7 @@ export default function App() {
       return true
     }
   })
+  const [networkOpen, setNetworkOpen] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -54,6 +56,30 @@ export default function App() {
     window.pibox.restart().catch((err) => console.error(err))
   }, [])
 
+  const toggleNetwork = useCallback(() => {
+    window.pibox.toggleNetwork().catch((err) => console.error(err))
+  }, [])
+
+  const addPortForward = useCallback((hostPort: number, guestPort: number) => {
+    window.pibox.addPortForward({ hostPort, guestPort }).catch((err) => console.error(err))
+  }, [])
+
+  const removePortForward = useCallback((hostPort: number) => {
+    window.pibox.removePortForward(hostPort).catch((err) => console.error(err))
+  }, [])
+
+  const addFirewallRule = useCallback((rule: FirewallRule) => {
+    window.pibox.addFirewallRule(rule).catch((err) => console.error(err))
+  }, [])
+
+  const removeFirewallRule = useCallback((id: string) => {
+    window.pibox.removeFirewallRule(id).catch((err) => console.error(err))
+  }, [])
+
+  const clearFirewall = useCallback(() => {
+    window.pibox.clearFirewall().catch((err) => console.error(err))
+  }, [])
+
   const toggleSidebar = useCallback(() => {
     setSidebarVisible((prev) => {
       const next = !prev
@@ -84,10 +110,25 @@ export default function App() {
           sidebarVisible={sidebarVisible}
           onToggleSidebar={toggleSidebar}
           onRestart={restart}
+          onToggleNetwork={toggleNetwork}
+          onOpenNetworkSettings={() => setNetworkOpen(true)}
         />
       </div>
 
       {!ready && <LoadingScreen status={state?.status} message={state?.statusMessage} onRestart={restart} />}
+
+      {networkOpen && (
+        <NetworkSettings
+          state={state}
+          onClose={() => setNetworkOpen(false)}
+          onToggleNetwork={toggleNetwork}
+          onAddPortForward={addPortForward}
+          onRemovePortForward={removePortForward}
+          onAddFirewallRule={addFirewallRule}
+          onRemoveFirewallRule={removeFirewallRule}
+          onClearFirewall={clearFirewall}
+        />
+      )}
     </div>
   )
 }

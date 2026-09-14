@@ -3,13 +3,15 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { ImageAddon } from '@xterm/addon-image'
 import type { AppState } from '@shared/types'
-import { PiMark, PlusIcon, PanelIcon, RefreshIcon } from './icons'
+import { PiMark, PlusIcon, PanelIcon, RefreshIcon, GearIcon } from './icons'
 
 interface Props {
   state: AppState | null
   sidebarVisible: boolean
   onToggleSidebar: () => void
   onRestart: () => void
+  onToggleNetwork: () => void
+  onOpenNetworkSettings: () => void
 }
 
 const TERMINAL_THEME = {
@@ -28,7 +30,7 @@ const TERMINAL_THEME = {
   white: '#c0caf5'
 }
 
-export default function TerminalView({ state, sidebarVisible, onToggleSidebar, onRestart }: Props) {
+export default function TerminalView({ state, sidebarVisible, onToggleSidebar, onRestart, onToggleNetwork, onOpenNetworkSettings }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -232,6 +234,19 @@ export default function TerminalView({ state, sidebarVisible, onToggleSidebar, o
             <span className="status-dot" data-status={state?.status ?? 'loading'} />
             {state?.status === 'ready' ? 'ready' : state?.status === 'error' ? 'error' : state?.status === 'stopped' ? 'stopped' : 'starting'}
           </span>
+          <button
+            className="network-btn"
+            data-up={state?.networkEnabled ? 'true' : 'false'}
+            title={state?.networkEnabled ? 'Network is up — click to disable' : 'Network is down — click to enable'}
+            onClick={onToggleNetwork}
+            disabled={state?.status !== 'ready'}
+          >
+            <span className="network-dot" data-up={state?.networkEnabled ? 'true' : 'false'} />
+            {state?.networkEnabled ? 'online' : 'offline'}
+          </button>
+          <button className="icon-btn" title="Network settings" onClick={onOpenNetworkSettings}>
+            <GearIcon size={14} />
+          </button>
         </div>
         <span className="mount-label" title={state?.activeMountPath ?? undefined}>
           <button className="icon-btn accent" title="New shell window (Ctrl+B c)" onClick={newShell}>
