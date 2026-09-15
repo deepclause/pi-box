@@ -129,12 +129,16 @@ On top of Electron:
   `.pi/tty-resize-daemon.py`.
 - The active workspace is mounted at **`/workspace`** inside the VM. Switching
   workspaces restarts the VM with the new mount (simple by design).
+- With **`persistentRoot`** enabled, AgentVM mounts an ext4-overlay root backed
+  by `<workspace>/.agentvm/upper.img` before the startup script runs, so
+  guest-root changes persist across restarts.
 
 ### Startup flow
 
 1. App opens → **loading screen** with the DeepClause logo.
 2. Main process boots `AgentVM` with the **last used workspace** mounted at
-   `/workspace` (status: “Booting AgentVM…”).
+   `/workspace` (status: “Booting AgentVM…”). With persistence enabled,
+   AgentVM mounts the ext4 overlay root first.
 3. When the shell prompt appears, the startup script launches tmux running `pi`
    (status: “Starting pi…”).
 4. When pi's TUI has rendered (detected via its “Press ctrl+o” startup hint),
@@ -170,8 +174,10 @@ pi-box-app/
             ├── styles.css
             └── components/
                 ├── LoadingScreen.tsx
+                ├── NetworkSettings.tsx
                 ├── WorkspaceSidebar.tsx
                 ├── FileTree.tsx
+                ├── icons.tsx
                 └── TerminalView.tsx
 ```
 
@@ -187,7 +193,7 @@ npm install
 npm run dev
 ```
 
-> `deepclause-agentvm` is an exact npm pin (currently `0.2.2`), so the app uses
+> `deepclause-agentvm` is an exact npm pin (currently `0.3.0`), so the app uses
 > the published package (including its ~322 MB `agentvm-alpine-python.wasm`
 > image).
 
@@ -237,9 +243,8 @@ Release binaries are built by GitHub Actions on every published release — see
       tree are still pending.
 - [ ] **Workspace settings UI** — edit `.pi/settings.json`, pick provider/model,
       manage sessions from the sidebar.
-- [ ] **VM controls** — restart button done; network toggle, firewall, port
-      forwarding and a persistent root fs are in progress (see “Work in
-      progress” above).
+- [x] **VM controls** — restart button, network on/off toggle, TCP port
+      forwarding, outbound firewall rules, and a persistent root filesystem.
 
 ## Known limitations
 
@@ -256,3 +261,6 @@ Release binaries are built by GitHub Actions on every published release — see
 - The ~322 MB wasm image must be read into memory on every boot (that's what the
   loading screen is for).
 - AgentVM itself is experimental (see its README disclaimer).
+- Persistence uses a 512 MB sparse ext4 overlay image per workspace
+  (`<workspace>/.agentvm/upper.img`); the first boot of a workspace is slower
+  because the guest formats it with `mkfs.ext4`.
