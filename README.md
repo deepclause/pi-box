@@ -18,7 +18,11 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 - a **file tree** view of each workspace, with a **per-file edit** action that
   opens the file in `vi` inside a new tmux window,
 - an **open in file manager** action (`open` / `xdg-open` / Explorer depending on OS),
-- a **collapsible workspaces sidebar** and a **restart** button in the terminal header.
+- a **collapsible workspaces sidebar** and a **restart** button in the terminal header,
+- **network controls**: runtime on/off toggle, TCP **port forwarding**, and
+  outbound **firewall rules** (via the gear menu in the terminal header),
+- a **persistent root filesystem** per workspace, so guest-root changes (`apk add`,
+  `/etc`, `/root`, `/tmp`, caches) survive restarts.
 
 ![status](https://img.shields.io/badge/status-prototype-orange)
 
@@ -58,20 +62,16 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 >
 > (adjust the path if you moved the app elsewhere).
 
-## Work in progress
+## Network & persistence
 
-Planned `agentvm` features, designed in
-[`deepclause/agentvm` → `docs/network-persistence-proposal.md`](https://github.com/deepclause/agentvm/blob/main/docs/network-persistence-proposal.md):
+Built on `deepclause-agentvm` 0.3.0:
 
-- **Network on/off toggle** (no reboot) — host-side `setNetworkEnabled()`, wired
-  to the app's network button.
-- **Firewall rules** — ordered incoming/outgoing allow/deny rules in the NAT,
-  live-editable and persisted per workspace.
-- **Port forwarding** — expose guest servers on host ports; add/remove forwards
-  at runtime without restarting the VM.
-- **Persistent root filesystem** — a per-workspace overlay (image as lower, a
-  9p-backed dir in `.pi-box/overlay` as upper) so `apk add`, `/etc`, `/root`,
-  `/tmp`, and pi's caches survive restarts.
+- **Network on/off** — toggle guest networking at runtime (header button or gear menu).
+- **Port forwarding** — expose guest TCP servers on host ports; add/remove at runtime.
+- **Firewall** — ordered outbound allow/deny rules, live-editable in the gear menu.
+- **Persistent root filesystem** — a per-workspace ext4 overlay (guest-root changes
+  like `apk add`, `/etc`, `/root`, `/tmp`, and pi's caches survive restarts). The
+  overlay image lives at `<workspace>/.agentvm/upper.img`.
 
 ---
 
