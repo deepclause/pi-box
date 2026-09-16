@@ -17,6 +17,11 @@ export default function LoadingScreen({ status, message, onRestart }: Props) {
         <img className="loading-logo" src="./logo.png" alt="DeepClause" draggable={false} />
       </div>
 
+      <div className="loading-titles">
+        <div className="loading-title">pi-box</div>
+        <div className="loading-by">by deepclause.ai</div>
+      </div>
+
       {!failed ? (
         <>
           <div className="loading-text">{label}</div>
