@@ -27,6 +27,7 @@ export interface PiBoxRpcApi {
   setModel(provider: string, modelId: string): Promise<RpcState>
   setThinkingLevel(level: string): Promise<RpcState>
   cycleModel(): Promise<RpcState>
+  cycleThinkingLevel(): Promise<RpcState>
   getSessionStats(): Promise<RpcSessionStats>
   getAvailableThinkingLevels(): Promise<string[]>
   getCommands(): Promise<RpcCommand[]>
@@ -123,6 +124,7 @@ const api: PiBoxApi = {
     setModel: (provider, modelId) => ipcRenderer.invoke('pibox:rpc:setModel', provider, modelId),
     setThinkingLevel: (level) => ipcRenderer.invoke('pibox:rpc:setThinkingLevel', level),
     cycleModel: () => ipcRenderer.invoke('pibox:rpc:cycleModel'),
+    cycleThinkingLevel: () => ipcRenderer.invoke('pibox:rpc:cycleThinkingLevel'),
     getSessionStats: () => ipcRenderer.invoke('pibox:rpc:getSessionStats'),
     getAvailableThinkingLevels: () => ipcRenderer.invoke('pibox:rpc:getAvailableThinkingLevels'),
     getCommands: () => ipcRenderer.invoke('pibox:rpc:getCommands'),

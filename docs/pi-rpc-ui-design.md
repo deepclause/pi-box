@@ -779,7 +779,9 @@ attachments (paste/drop/picker), fork-from-message and clone, a read-only
 `get_tree` branch viewer with fork-from-node, Esc to clear the queue and abort,
 reconnect, tool cards with per-tool summaries and truncated output, a
 collapsible sessions pane, a chat-toolbar overflow menu, and a grey/industrial
-theme with full-width chat. Also a README refresh. Still open: terminal tabs via
+theme with full-width chat, resume-last-session on launch, Cmd/Ctrl+P and
+Cmd/Ctrl+T model/thinking cycling, and a delete confirmation. Also a README
+refresh. Still open: terminal tabs via
 `tmux list-windows`, `maxLiveSessions`, per-session settings, and the rest of
 the TUI keybindings.
 

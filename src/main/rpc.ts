@@ -380,6 +380,12 @@ export class RpcSessionManager extends EventEmitter {
       })
       log(`ready (model ${this.stateValue.model?.id ?? 'none'})`)
       await this.refreshStats().catch(() => undefined)
+
+      // Relaunch convenience: continue the most recent conversation when pi
+      // started a fresh, empty session (like Claude Desktop).
+      if (Number(data.messageCount ?? 0) === 0) {
+        await this.resumeMostRecent(connection).catch(() => undefined)
+      }
       return this.state
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -569,6 +575,24 @@ export class RpcSessionManager extends EventEmitter {
         model: { provider: data.model.provider ?? '', id: data.model.id ?? '', name: data.model.name }
       })
     }
+  }
+
+  async cycleThinkingLevel(): Promise<void> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'cycle_thinking_level' })
+    const data = (response.data ?? null) as { level?: string } | null
+    if (data?.level) this.setState({ thinkingLevel: data.level })
+  }
+
+  /** Switch to the most recently updated session that is not the empty one. */
+  private async resumeMostRecent(connection: RpcConnection): Promise<void> {
+    const sessions = await this.listSessions()
+    const candidate = sessions.find((session) => !session.active && session.title !== 'Empty session')
+    if (!candidate) return
+    const response = await connection.send({ type: 'switch_session', sessionPath: candidate.file })
+    if (!response.success || (response.data as { cancelled?: boolean } | undefined)?.cancelled) return
+    await this.refreshState()
+    log(`resumed most recent session ${candidate.file}`)
   }
 
   /** List the workspace's session files, most recently updated first. */

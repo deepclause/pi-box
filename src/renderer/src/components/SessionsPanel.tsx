@@ -24,6 +24,7 @@ function relativeTime(ms: number): string {
 export default function SessionsPanel({ sessions, onSelect, onNew, onDelete, onRename, onExport }: Props) {
   const [editing, setEditing] = useState<string | null>(null)
   const [value, setValue] = useState('')
+  const [confirming, setConfirming] = useState<string | null>(null)
 
   const commit = (file: string): void => {
     onRename(file, value.trim())
@@ -60,28 +61,45 @@ export default function SessionsPanel({ sessions, onSelect, onNew, onDelete, onR
                   <span className="session-title">{session.name || session.title}</span>
                   <span className="session-time">{relativeTime(session.updatedAt)}</span>
                 </button>
-                <span className="session-actions">
-                  {session.active ? (
+                {confirming === session.file ? (
+                  <span className="session-actions session-confirm">
                     <button
-                      className="icon-btn"
-                      title="Rename session"
+                      className="text-btn danger"
                       onClick={() => {
-                        setEditing(session.file)
-                        setValue(session.name || session.title)
+                        onDelete(session.file)
+                        setConfirming(null)
                       }}
                     >
-                      <EditIcon size={12} />
+                      Delete
                     </button>
-                  ) : null}
-                  {session.active ? (
-                    <button className="icon-btn" title="Export session to HTML" onClick={onExport}>
-                      <ExternalLinkIcon size={12} />
+                    <button className="text-btn" onClick={() => setConfirming(null)}>
+                      Cancel
                     </button>
-                  ) : null}
-                  <button className="icon-btn danger" title="Delete session" onClick={() => onDelete(session.file)}>
-                    <CloseIcon size={12} />
-                  </button>
-                </span>
+                  </span>
+                ) : (
+                  <span className="session-actions">
+                    {session.active ? (
+                      <button
+                        className="icon-btn"
+                        title="Rename session"
+                        onClick={() => {
+                          setEditing(session.file)
+                          setValue(session.name || session.title)
+                        }}
+                      >
+                        <EditIcon size={12} />
+                      </button>
+                    ) : null}
+                    {session.active ? (
+                      <button className="icon-btn" title="Export session to HTML" onClick={onExport}>
+                        <ExternalLinkIcon size={12} />
+                      </button>
+                    ) : null}
+                    <button className="icon-btn danger" title="Delete session" onClick={() => setConfirming(session.file)}>
+                      <CloseIcon size={12} />
+                    </button>
+                  </span>
+                )}
               </>
             )}
           </div>

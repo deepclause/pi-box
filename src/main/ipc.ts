@@ -162,6 +162,11 @@ export function registerIpc(ctx: IpcContext): void {
     return rpc.state
   })
 
+  ipcMain.handle('pibox:rpc:cycleThinkingLevel', async () => {
+    await rpc.cycleThinkingLevel()
+    return rpc.state
+  })
+
   ipcMain.handle('pibox:rpc:listSessions', async () => rpc.listSessions())
 
   ipcMain.handle('pibox:rpc:newSession', async () => rpc.newSession())

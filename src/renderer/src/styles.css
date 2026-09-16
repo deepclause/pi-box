@@ -2156,3 +2156,20 @@ body {
 .chat-send:hover:not(:disabled) {
   background: #3395ff;
 }
+
+.session-confirm {
+  gap: 2px;
+}
+
+.session-confirm .text-btn {
+  padding: 2px 7px;
+  font-size: 11px;
+}
+
+.text-btn.danger {
+  color: var(--red);
+}
+
+.text-btn.danger:hover {
+  color: #ff6b63;
+}

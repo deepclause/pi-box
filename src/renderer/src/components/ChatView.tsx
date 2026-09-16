@@ -514,18 +514,6 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
     }
   }, [reloadTranscript, reloadSessions])
 
-  // Cmd/Ctrl+N starts a fresh session.
-  useEffect(() => {
-    const onKey = (event: globalThis.KeyboardEvent): void => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'n') {
-        event.preventDefault()
-        void newSession()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [newSession])
-
   const selectModel = useCallback(async (value: string) => {
     const slash = value.indexOf('/')
     if (slash < 0) return
@@ -543,6 +531,42 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
       setError(err instanceof Error ? err.message : String(err))
     }
   }, [])
+
+  const cycleModel = useCallback(async () => {
+    try {
+      setRpcState(await window.pibox.rpc.cycleModel())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [])
+
+  const cycleThinking = useCallback(async () => {
+    try {
+      setRpcState(await window.pibox.rpc.cycleThinkingLevel())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [])
+
+  // Cmd/Ctrl+N new session · Cmd/Ctrl+P cycle model · Cmd/Ctrl+T cycle thinking.
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent): void => {
+      if (!event.metaKey && !event.ctrlKey) return
+      const key = event.key.toLowerCase()
+      if (key === 'n') {
+        event.preventDefault()
+        void newSession()
+      } else if (key === 'p') {
+        event.preventDefault()
+        void cycleModel()
+      } else if (key === 't') {
+        event.preventDefault()
+        void cycleThinking()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [newSession, cycleModel, cycleThinking])
 
   const commandMatches = useMemo(() => {
     if (!input.startsWith('/') || input.includes(' ')) return []
@@ -671,7 +695,13 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
 
           <div className="chat-composer">
             <div className="chat-composer-meta">
-              <select className="chat-select" value={modelKey} onChange={(event) => void selectModel(event.target.value)} disabled={rpcState.status !== 'ready'}>
+              <select
+                className="chat-select"
+                title="Model (⌘/Ctrl+P to cycle)"
+                value={modelKey}
+                onChange={(event) => void selectModel(event.target.value)}
+                disabled={rpcState.status !== 'ready'}
+              >
                 {!knownModel && modelKey ? <option value={modelKey}>{rpcState.model?.id}</option> : null}
                 {models.length === 0 && !modelKey ? <option value="">no model</option> : null}
                 {models.map((model) => (
@@ -682,6 +712,7 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
               </select>
               <select
                 className="chat-select"
+                title="Thinking level (⌘/Ctrl+T to cycle)"
                 value={rpcState.thinkingLevel ?? 'off'}
                 onChange={(event) => void selectThinking(event.target.value)}
                 disabled={rpcState.status !== 'ready'}
