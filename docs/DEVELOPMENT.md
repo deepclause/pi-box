@@ -328,5 +328,39 @@ npm run dist:mac     # dmg + zip (macOS only)
 npm run dist:win     # NSIS + portable (Windows only)
 ```
 
+### Resetting app data (re-test onboarding)
+
+State lives in two places:
+
+- `~/.config/pi-box/` (Electron `userData`): `workspaces.json` (workspaces,
+  `lastActiveId`, `preferences.onboardingDone`) and `auth.json` (shared account
+  file, used to seed new workspaces).
+- `<workspace>/.pi/`: `auth.json` (per-workspace credentials), `settings.json`
+  (pi defaults), `sessions/`.
+
+Re-run onboarding without losing workspaces — quit pi-box, then:
+
+```bash
+python3 - <<'PY'
+import json, pathlib
+p = pathlib.Path.home() / '.config/pi-box/workspaces.json'
+d = json.loads(p.read_text())
+d.setdefault('preferences', {})['onboardingDone'] = False
+p.write_text(json.dumps(d, indent=2))
+PY
+rm -f ~/.config/pi-box/auth.json
+rm -f "$HOME/Downloads/.pi/auth.json"   # the active workspace's credentials
+```
+
+Full reset (workspaces + credentials + per-workspace pi state):
+
+```bash
+rm -rf ~/.config/pi-box
+rm -rf ~/pi-box-workspace/.pi ~/Downloads/.pi
+```
+
+In the UI you can also use **Providers → Run setup again**; to exercise a real
+first-run login, **Log out** the connected providers first.
+
 See also: `docs/pi-rpc-ui-design.md` for the RPC chat design, and
 `README.md` for the user-facing overview.

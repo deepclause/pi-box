@@ -40,6 +40,7 @@ export default function App() {
   const [networkOpen, setNetworkOpen] = useState(false)
   const [providersOpen, setProvidersOpen] = useState(false)
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
+  const [setupOpen, setSetupOpen] = useState(false)
   const auth = useAuth()
 
   useEffect(() => {
@@ -114,7 +115,13 @@ export default function App() {
 
   const completeOnboarding = useCallback(() => {
     setOnboardingDismissed(true)
+    setSetupOpen(false)
     window.pibox.setOnboardingDone(true).catch((err) => console.error(err))
+  }, [])
+
+  const openSetup = useCallback(() => {
+    setProvidersOpen(false)
+    setSetupOpen(true)
   }, [])
 
   const openTerminal = useCallback(() => setActiveView('terminal'), [setActiveView])
@@ -169,12 +176,13 @@ export default function App() {
   const ready = state?.status === 'ready'
   const hasCredentials = auth.status.length > 0
   const showOnboarding =
-    !onboardingDismissed &&
-    auth.loaded &&
-    !!state &&
-    state.status === 'ready' &&
-    !state.onboardingDone &&
-    !hasCredentials
+    setupOpen ||
+    (!onboardingDismissed &&
+      auth.loaded &&
+      !!state &&
+      state.status === 'ready' &&
+      !state.onboardingDone &&
+      !hasCredentials)
 
   // Anyone who already has credentials has effectively completed setup.
   useEffect(() => {
@@ -250,6 +258,7 @@ export default function App() {
           statusFor={auth.statusFor}
           onLogin={auth.start}
           onLogout={(providerId) => void auth.logout(providerId)}
+          onRerunSetup={openSetup}
           onClose={() => setProvidersOpen(false)}
         />
       ) : null}

@@ -8,6 +8,7 @@ interface Props {
   statusFor: (providerId: string) => AuthStatus | undefined
   onLogin: (providerId: string, method: AuthMethod) => void
   onLogout: (providerId: string) => void
+  onRerunSetup: () => void
   onClose: () => void
 }
 
@@ -18,6 +19,7 @@ export default function ProvidersSettings({
   statusFor,
   onLogin,
   onLogout,
+  onRerunSetup,
   onClose
 }: Props) {
   const connected = status.filter((entry) => entry.kind !== 'env').length
@@ -45,6 +47,12 @@ export default function ProvidersSettings({
             onLogin={onLogin}
             onLogout={onLogout}
           />
+        </div>
+
+        <div className="account-footer">
+          <button className="btn ghost small" onClick={onRerunSetup}>
+            Run setup again
+          </button>
         </div>
       </div>
     </div>
