@@ -57,7 +57,6 @@ export interface PiBoxApi {
   openFolder(id: string): Promise<OpenResult>
   readTree(id: string, dirPath?: string): Promise<FileNode[]>
   termInput(data: string): void
-  startPiTui(): void
   termResize(cols: number, rows: number): void
   clipboardReadText(): Promise<string>
   clipboardWriteText(text: string): Promise<void>
@@ -84,7 +83,6 @@ const api: PiBoxApi = {
   openFolder: (id) => ipcRenderer.invoke('pibox:openFolder', id),
   readTree: (id, dirPath) => ipcRenderer.invoke('pibox:readTree', id, dirPath),
   termInput: (data) => ipcRenderer.send('pibox:termInput', data),
-  startPiTui: () => ipcRenderer.send('pibox:startPiTui'),
   termResize: (cols, rows) => ipcRenderer.send('pibox:termResize', cols, rows),
   clipboardReadText: () => ipcRenderer.invoke('pibox:clipboardReadText'),
   clipboardWriteText: (text) => ipcRenderer.invoke('pibox:clipboardWriteText', text),

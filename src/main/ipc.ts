@@ -243,10 +243,6 @@ export function registerIpc(ctx: IpcContext): void {
     return store.readTree(id, dirPath)
   })
 
-  ipcMain.on('pibox:startPiTui', () => {
-    void vm.startPiTui()
-  })
-
   ipcMain.on('pibox:termInput', (_event, data: string) => {
     void vm.write(data)
   })

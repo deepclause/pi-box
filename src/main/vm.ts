@@ -145,21 +145,6 @@ export class VmManager extends EventEmitter {
     await this.write(`new-window "vi ${vmPath}"\r`)
   }
 
-  /**
-   * Open the pi TUI in a new tmux window. The default window is a shell now
-   * (the chat UI owns the RPC pi); this preserves easy access to the TUI.
-   */
-  async startPiTui(): Promise<void> {
-    if (!this.vm || this.phase !== 'ready') return
-    await this.write('\x02:')
-    await new Promise((resolve) => setTimeout(resolve, 200))
-    // Reuse the existing "pi" window in the single workspace session instead of
-    // piling up new ones.
-    await this.write(
-      'run-shell "tmux select-window -t pi-box:pi 2>/dev/null || tmux new-window -t pi-box -n pi pi"\r'
-    )
-  }
-
   /** Toggle guest networking at runtime (no VM restart). */
   async toggleNetwork(): Promise<void> {
     if (!this.vm) return

@@ -107,14 +107,6 @@ export default function AppHeader({
         </button>
       </div>
       <span className="mount-label" title={state?.activeMountPath ?? undefined}>
-        <button
-          className="icon-btn"
-          title="Open the pi TUI in a terminal window"
-          onClick={() => window.pibox.startPiTui()}
-          disabled={state?.status !== 'ready'}
-        >
-          <PiMark size={14} />
-        </button>
         <button className="icon-btn accent" title="New shell window (Ctrl+B c)" onClick={newShell}>
           <PlusIcon size={14} />
         </button>
