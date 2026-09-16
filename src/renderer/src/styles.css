@@ -1,29 +1,29 @@
 /* Light theme is the default; dark is opt-in via <html data-theme="dark">. */
 :root {
   color-scheme: light;
-  --bg: #ececef;
-  --bg-panel: #ffffff;
-  --chrome: #f6f6f8;
-  --surface: rgba(0, 0, 0, 0.05);
-  --surface-hover: rgba(0, 0, 0, 0.075);
-  --surface-active: rgba(0, 0, 0, 0.12);
-  --selection: rgba(0, 0, 0, 0.08);
-  --border: rgba(0, 0, 0, 0.14);
-  --border-soft: rgba(0, 0, 0, 0.08);
-  --text: #1d1d1f;
+  --bg: #e9e9e6;
+  --bg-panel: #fafaf8;
+  --chrome: #f0f0ee;
+  --surface: rgba(0, 0, 0, 0.045);
+  --surface-hover: rgba(0, 0, 0, 0.07);
+  --surface-active: rgba(0, 0, 0, 0.11);
+  --selection: rgba(0, 0, 0, 0.07);
+  --border: rgba(0, 0, 0, 0.1);
+  --border-soft: rgba(0, 0, 0, 0.05);
+  --text: #26262a;
   --text-dim: #6b6b70;
-  --text-faint: #9a9aa0;
+  --text-faint: #9a9a9f;
   --accent: #3a3a40;
   --accent-contrast: #ffffff;
   --accent-hover: #17171a;
-  --accent-soft: rgba(0, 0, 0, 0.08);
-  --field-bg: rgba(0, 0, 0, 0.045);
-  --field-bg-focus: #ffffff;
-  --focus-ring: rgba(0, 0, 0, 0.18);
-  --material: rgba(255, 255, 255, 0.9);
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
-  --scrollbar-thumb: rgba(0, 0, 0, 0.22);
-  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.34);
+  --accent-soft: rgba(0, 0, 0, 0.06);
+  --field-bg: rgba(0, 0, 0, 0.05);
+  --field-bg-focus: rgba(0, 0, 0, 0.025);
+  --focus-ring: rgba(0, 0, 0, 0.14);
+  --material: rgba(250, 250, 248, 0.92);
+  --shadow: 0 20px 50px rgba(0, 0, 0, 0.16);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
   --green: #1a7f37;
   --cyan: #0e7490;
   --amber: #b45309;
@@ -43,26 +43,26 @@
 
 [data-theme='dark'] {
   color-scheme: dark;
-  --bg: #1e1e1f;
-  --bg-panel: #26262a;
-  --chrome: rgba(34, 34, 38, 0.72);
-  --surface: rgba(255, 255, 255, 0.06);
-  --surface-hover: rgba(255, 255, 255, 0.09);
-  --surface-active: rgba(255, 255, 255, 0.13);
-  --selection: rgba(255, 255, 255, 0.12);
-  --border: rgba(255, 255, 255, 0.1);
-  --border-soft: rgba(255, 255, 255, 0.06);
-  --text: #f2f2f4;
-  --text-dim: #a0a0a8;
-  --text-faint: #6e6e78;
-  --accent: #e8e8ec;
+  --bg: #1c1c1e;
+  --bg-panel: #242427;
+  --chrome: rgba(32, 32, 35, 0.72);
+  --surface: rgba(255, 255, 255, 0.055);
+  --surface-hover: rgba(255, 255, 255, 0.085);
+  --surface-active: rgba(255, 255, 255, 0.12);
+  --selection: rgba(255, 255, 255, 0.11);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-soft: rgba(255, 255, 255, 0.05);
+  --text: #ededf0;
+  --text-dim: #9c9ca4;
+  --text-faint: #6c6c75;
+  --accent: #e6e6ea;
   --accent-contrast: #1a1a1c;
   --accent-hover: #ffffff;
   --accent-soft: rgba(255, 255, 255, 0.1);
   --field-bg: rgba(0, 0, 0, 0.2);
-  --field-bg-focus: rgba(0, 0, 0, 0.32);
-  --focus-ring: rgba(255, 255, 255, 0.22);
-  --material: rgba(38, 38, 42, 0.92);
+  --field-bg-focus: rgba(0, 0, 0, 0.3);
+  --focus-ring: rgba(255, 255, 255, 0.2);
+  --material: rgba(36, 36, 40, 0.92);
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
   --scrollbar-thumb: rgba(255, 255, 255, 0.16);
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
@@ -2657,4 +2657,106 @@ body {
   border: 1px solid var(--border);
   color: var(--text-dim);
   flex-shrink: 0;
+}
+
+/* ---------- Softer chrome: fewer lines, surfaces carry the structure ---------- */
+
+.terminal-header,
+.sidebar,
+.sessions-panel,
+.chat-composer,
+.sessions-search,
+.tool-card,
+.tool-card-head,
+.tool-card-toggle,
+.status-pill,
+.network-btn,
+.view-switch,
+.badge,
+.chat-queue-chip,
+.chat-msg[data-role='user'] .chat-msg-body,
+.markdown pre,
+.btn,
+.settings-row,
+.modal,
+.ui-dialog,
+.chat-menu-pop {
+  border: none;
+}
+
+.terminal-header,
+.sidebar,
+.sessions-panel,
+.chat-composer,
+.sessions-search,
+.tool-card-head {
+  border-bottom: none;
+  border-right: none;
+  border-top: none;
+}
+
+/* Tool cards & user bubbles/backdrops use subtle fills instead of outlines */
+.tool-card {
+  background: var(--surface);
+}
+
+.tool-card-head {
+  background: transparent;
+  border: none;
+}
+
+.markdown pre {
+  background: var(--surface);
+}
+
+.markdown code {
+  background: var(--surface);
+}
+
+.chat-msg[data-role='user'] .chat-msg-body {
+  background: var(--surface);
+}
+
+.chat-composer {
+  background: var(--chrome);
+}
+
+/* Fields: fill only */
+.field,
+.chat-input,
+.chat-select,
+.ui-dialog-input,
+.ui-dialog-editor,
+.sessions-search input {
+  border: none;
+  background: var(--field-bg);
+}
+
+/* Keep a whisper of definition on focus */
+.field:focus,
+.chat-input:focus,
+.chat-select:focus,
+.ui-dialog-input:focus,
+.ui-dialog-editor:focus,
+.sessions-search input:focus {
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+/* Modal/sheet: rely on the material + shadow, not a border */
+.modal,
+.ui-dialog,
+.chat-menu-pop {
+  background: var(--material);
+  box-shadow: var(--shadow);
+}
+
+/* Sidebar selection stays a soft fill */
+.workspace-item.active,
+.session-item[data-active='true'] {
+  background: var(--selection);
+}
+
+/* Segment control: pill uses fill, no outline */
+.view-switch {
+  background: var(--surface);
 }
