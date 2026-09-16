@@ -181,6 +181,8 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
   const [awaiting, setAwaiting] = useState(false)
   // True while a session is being switched/created (pi has to load it).
   const [switching, setSwitching] = useState(false)
+  // True only while the transcript for the live session is being fetched.
+  const [loadingTranscript, setLoadingTranscript] = useState(false)
   const transcriptRef = useRef<HTMLDivElement | null>(null)
   const lastSessionFileRef = useRef<string | null>(null)
   const streamStartRef = useRef<number | null>(null)
@@ -217,6 +219,7 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
   }, [])
 
   const reloadTranscript = useCallback(async () => {
+    setLoadingTranscript(true)
     try {
       const entries = await window.pibox.rpc.getEntries()
       setChat({ messages: messagesFromEntries(entries), activeAssistantId: null })
@@ -225,6 +228,8 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
       setDialogs([])
     } catch {
       /* ignore */
+    } finally {
+      setLoadingTranscript(false)
     }
   }, [])
 
@@ -313,10 +318,9 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
     if (openingRef.current) return
     openingRef.current = true
     setError(null)
-    // Keep the loading overlay up until the transcript and session list are
-    // rendered, so the fresh session pi opens isn't shown before the resumed
-    // one is loaded.
-    setSwitching(true)
+    // No overlay around the boot/resume: the "Starting pi…" card covers it. The
+    // overlay for the transcript fetch is driven by loadingTranscript once the
+    // session is ready (see reloadTranscript).
     try {
       const next = await window.pibox.rpc.open()
       setRpcState(next)
@@ -325,10 +329,17 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
-      setSwitching(false)
       openingRef.current = false
     }
   }, [reloadTranscript, reloadSessions])
+
+  // Load the session list as soon as a workspace is active so the existing
+  // sessions show while pi is still booting (listSessions only reads the
+  // workspace, it does not need the pi process).
+  useEffect(() => {
+    if (!state?.activeWorkspaceId) return
+    void reloadSessions()
+  }, [state?.activeWorkspaceId, reloadSessions])
 
   useEffect(() => {
     if (rpcState.status === 'ready') retryRef.current = 0
@@ -681,7 +692,7 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
           />
         ) : null}
         <div className="chat-main">
-          {switching ? (
+          {switching || loadingTranscript ? (
             <div className="chat-loading" aria-label="Loading session">
               <span className="chat-awaiting-ball" />
             </div>
