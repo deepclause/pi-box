@@ -2902,3 +2902,433 @@ body {
 .view-slot[data-hidden='true'] {
   display: none;
 }
+
+/* ---------- Native provider auth (onboarding, providers, login) ---------- */
+
+.btn.small {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+
+.btn.ghost:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.chip {
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.chip.solid {
+  color: var(--accent-contrast);
+  background: var(--accent);
+  border-color: transparent;
+}
+
+/* Header account button */
+.account-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.account-btn:hover {
+  background: var(--surface-hover);
+}
+
+.account-btn[data-connected='false'] {
+  border-color: var(--border);
+  background: var(--accent-soft);
+  font-weight: 500;
+}
+
+.account-btn-label {
+  font-size: 12px;
+}
+
+.account-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.account-dot[data-connected='true'] {
+  background: var(--green);
+}
+
+/* Providers panel */
+.modal.account-modal {
+  width: 620px;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.account-modal .modal-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.account-intro {
+  margin: 0;
+  padding: 12px 18px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.account-scroll {
+  overflow-y: auto;
+  max-height: min(62vh, 560px);
+  padding: 10px 14px 16px;
+}
+
+/* Provider list */
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.provider-search {
+  width: 100%;
+  padding: 8px 10px;
+}
+
+.provider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.provider-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 2px;
+}
+
+.provider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface);
+}
+
+.provider-row:hover {
+  background: var(--surface-hover);
+}
+
+.provider-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.provider-name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-methods {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.provider-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.provider-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Auth dialog */
+.ui-dialog.auth-dialog {
+  width: 400px;
+}
+
+.auth-dialog-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2px auto 4px;
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+.auth-dialog-icon.success {
+  background: color-mix(in srgb, var(--green) 18%, transparent);
+  color: var(--green);
+}
+
+.auth-dialog-provider {
+  font-weight: 600;
+}
+
+.auth-dialog-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.auth-dialog-block-text {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.auth-dialog-url {
+  font-size: 10px;
+  color: var(--text-faint);
+  word-break: break-all;
+}
+
+.auth-dialog-code {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-dialog-code .mono {
+  font-size: 20px;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+  flex: 1;
+}
+
+.auth-dialog-options {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.auth-dialog-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  padding: 8px 11px;
+}
+
+.auth-dialog-option-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.auth-dialog-option-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.auth-dialog-progress {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.auth-dialog-error {
+  font-size: 12px;
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red) 25%, transparent);
+  border-radius: 7px;
+  padding: 8px 10px;
+  word-break: break-word;
+}
+
+/* In-chat sign-in call to action */
+.chat-auth-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 26px 10px;
+  padding: 9px 13px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--accent-soft);
+}
+
+.chat-auth-cta-text {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* Onboarding */
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+.onboarding-card {
+  width: 500px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 30px 28px 22px;
+  overflow: hidden;
+}
+
+.onboarding-step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.onboarding-step.wide {
+  min-height: min(60vh, 520px);
+}
+
+.onboarding-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  margin-bottom: 4px;
+}
+
+.onboarding-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.onboarding-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+.onboarding-providers {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 2px -6px 0;
+  padding: 0 6px;
+}
+
+.onboarding-models {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 2px -4px 0;
+  padding: 0 4px;
+}
+
+.onboarding-model {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.onboarding-model:hover {
+  background: var(--surface-hover);
+}
+
+.onboarding-model[data-active='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.onboarding-model-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.onboarding-model-provider {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.onboarding-model-check {
+  color: var(--text);
+  display: flex;
+}
+
+.onboarding-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}

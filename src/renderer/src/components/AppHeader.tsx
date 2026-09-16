@@ -1,5 +1,15 @@
 import type { AppState } from '@shared/types'
-import { PiMark, PlusIcon, PanelIcon, RefreshIcon, GearIcon, ListIcon, MoonIcon, SunIcon } from './icons'
+import {
+  PiMark,
+  PlusIcon,
+  PanelIcon,
+  RefreshIcon,
+  GearIcon,
+  ListIcon,
+  MoonIcon,
+  SunIcon,
+  UserIcon
+} from './icons'
 
 export type AppView = 'chat' | 'terminal'
 
@@ -16,6 +26,8 @@ interface Props {
   onRestart: () => void
   onToggleNetwork: () => void
   onOpenNetworkSettings: () => void
+  hasCredentials: boolean
+  onOpenProviders: () => void
 }
 
 export default function AppHeader({
@@ -30,7 +42,9 @@ export default function AppHeader({
   onToggleTheme,
   onRestart,
   onToggleNetwork,
-  onOpenNetworkSettings
+  onOpenNetworkSettings,
+  hasCredentials,
+  onOpenProviders
 }: Props) {
   const newShell = (): void => {
     window.pibox.termInput('\x02c')
@@ -104,6 +118,16 @@ export default function AppHeader({
         </button>
         <button className="icon-btn" title="Network settings" onClick={onOpenNetworkSettings}>
           <GearIcon size={14} />
+        </button>
+        <button
+          className="account-btn"
+          data-connected={hasCredentials ? 'true' : 'false'}
+          title={hasCredentials ? 'Providers' : 'Sign in to a provider'}
+          onClick={onOpenProviders}
+        >
+          <UserIcon size={14} />
+          {hasCredentials ? null : <span className="account-btn-label">Sign in</span>}
+          <span className="account-dot" data-connected={hasCredentials ? 'true' : 'false'} />
         </button>
       </div>
       <span className="mount-label" title={state?.activeMountPath ?? undefined}>

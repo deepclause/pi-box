@@ -159,11 +159,13 @@ function UsageBar({ stats }: { stats: RpcSessionStats | undefined }) {
 export default function ChatView({
   state,
   sessionsVisible,
-  onOpenTerminal
+  onOpenTerminal,
+  onOpenProviders
 }: {
   state: AppState | null
   sessionsVisible: boolean
   onOpenTerminal: () => void
+  onOpenProviders: () => void
 }) {
   const [rpcState, setRpcState] = useState<RpcState>(INITIAL_RPC_STATE)
   const [chat, setChat] = useState<ChatState>(EMPTY_STATE)
@@ -421,8 +423,8 @@ export default function ChatView({
       setAttachments([])
       setCommandIndex(0)
       onOpenTerminal()
-      // pi-box exports PI_OFFLINE=1 to skip startup network work; login/OAuth
-      // needs the network, so clear it for this interactive pi.
+      // Run the interactive pi without PI_OFFLINE so it has full network
+      // access (pi-box sets it to skip slow startup network work).
       if (state?.status === 'ready') window.pibox.termInput('unset PI_OFFLINE; pi\r')
       pushToast(`Starting pi in the terminal — run ${text}`)
       return
@@ -714,6 +716,10 @@ export default function ChatView({
   const modelKey = rpcState.model ? `${rpcState.model.provider}/${rpcState.model.id}` : ''
   const knownModel = models.some((model) => `${model.provider}/${model.id}` === modelKey)
   const levels = thinkingLevels.length ? thinkingLevels : ['off', 'minimal', 'low', 'medium', 'high']
+  // pi reports "No API key found …" when the selected model has no credential;
+  // surface a sign-in action instead of a dead end.
+  const needsAuth =
+    !!error && /api[_ ]?key|not authenticated|unauthor|credential|sign in|log ?in/i.test(error)
 
   return (
     <section className="chat-pane">
@@ -766,11 +772,20 @@ export default function ChatView({
               : null}
           </div>
 
-          {error ? (
+          {error && !needsAuth ? (
             <div className="chat-error-bar">
               {error}
               <button className="text-btn" onClick={() => void open()} disabled={notReady}>
                 Retry
+              </button>
+            </div>
+          ) : null}
+
+          {needsAuth ? (
+            <div className="chat-auth-cta">
+              <span className="chat-auth-cta-text">No provider is connected for this model.</span>
+              <button className="btn primary small" onClick={onOpenProviders}>
+                Sign in
               </button>
             </div>
           ) : null}

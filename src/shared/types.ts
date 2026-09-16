@@ -26,6 +26,8 @@ export interface AppState {
   networkEnabled: boolean
   portForwards: PortForward[]
   firewallRules: FirewallRule[]
+  /** Whether the first-run provider/model setup has been completed or skipped. */
+  onboardingDone: boolean
 }
 
 export interface PortForward {

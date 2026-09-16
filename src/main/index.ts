@@ -4,6 +4,7 @@ import path from 'node:path'
 import { VmManager } from './vm'
 import { WorkspaceStore } from './workspaces'
 import { RpcSessionManager } from './rpc'
+import { AuthService } from './auth'
 import { MOUNT_POINT, registerIpc } from './ipc'
 import type { AppState } from '../shared/types'
 import type { RpcEvent, RpcState } from '../shared/rpc-types'
@@ -13,6 +14,17 @@ let mainWindow: BrowserWindow | null = null
 const vm = new VmManager()
 const store = new WorkspaceStore()
 const rpc = new RpcSessionManager(vm, store)
+const auth = new AuthService(store, {
+  publish: (channel, payload) => broadcastAuth(channel, payload),
+  onCredentialsChanged: () => {
+    // Reload the running pi session so it picks up the new credentials.
+    if (vm.status !== 'ready') return
+    void (async () => {
+      await rpc.teardown()
+      await rpc.ensureSession()
+    })().catch(() => undefined)
+  }
+})
 
 function buildState(): AppState {
   const active = store.getActive()
@@ -25,7 +37,8 @@ function buildState(): AppState {
     mountPoint: MOUNT_POINT,
     networkEnabled: vm.networkEnabled,
     portForwards: vm.portForwards,
-    firewallRules: vm.firewallRules
+    firewallRules: vm.firewallRules,
+    onboardingDone: store.getOnboardingDone()
   }
 }
 
@@ -53,6 +66,12 @@ function broadcastRpcState(state: RpcState): void {
   }
 }
 
+function broadcastAuth(channel: string, payload: unknown): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload)
+  }
+}
+
 /**
  * Remove the guest bridge's readiness marker before booting the VM. The marker
  * lives on the workspace mount, so it survives restarts; a stale marker would
@@ -76,9 +95,11 @@ async function restartVm(): Promise<void> {
   }
   // The VM (and its port forwards) is about to disappear; drop the RPC session.
   await rpc.teardown()
+  auth.reset()
   clearRpcReadyMarker()
   await vm.start({ [MOUNT_POINT]: active.path })
   broadcast()
+  void auth.publishStatus()
 }
 
 function createWindow(): void {
@@ -133,6 +154,7 @@ void app.whenReady().then(async () => {
     vm,
     store,
     rpc,
+    auth,
     buildState,
     broadcast,
     restartVm,
@@ -153,6 +175,8 @@ void app.whenReady().then(async () => {
     await vm.start({ [MOUNT_POINT]: active.path })
     broadcast()
   }
+
+  void auth.publishStatus()
 })
 
 app.on('window-all-closed', () => {

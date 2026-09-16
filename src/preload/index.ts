@@ -1,6 +1,16 @@
 import { contextBridge, ipcRenderer, shell } from 'electron'
 import type { AppState, FileNode, FirewallRule, OpenResult } from '../shared/types'
 import type {
+  AuthEventMessage,
+  AuthLoginResult,
+  AuthMethod,
+  AuthPromptRequest,
+  AuthPromptResponse,
+  AuthProviderInfo,
+  AuthSessionHandle,
+  AuthStatus
+} from '../shared/auth-types'
+import type {
   RpcCommand,
   RpcEvent,
   RpcExtensionUIResponse,
@@ -47,8 +57,22 @@ export interface PiBoxRpcApi {
   onState(cb: (state: RpcState) => void): () => void
 }
 
+export interface PiBoxAuthApi {
+  providers(): Promise<AuthProviderInfo[]>
+  status(): Promise<AuthStatus[]>
+  login(providerId: string, method: AuthMethod): Promise<AuthSessionHandle>
+  logout(providerId: string): Promise<AuthStatus[]>
+  respond(response: AuthPromptResponse): void
+  cancel(sessionId: string): void
+  onPrompt(cb: (request: AuthPromptRequest) => void): () => void
+  onEvent(cb: (message: AuthEventMessage) => void): () => void
+  onDone(cb: (result: AuthLoginResult) => void): () => void
+  onStatus(cb: (status: AuthStatus[]) => void): () => void
+}
+
 export interface PiBoxApi {
   getState(): Promise<AppState>
+  setOnboardingDone(done: boolean): Promise<AppState>
   restart(): Promise<AppState>
   editFile(workspaceId: string, hostPath: string): Promise<OpenResult>
   addWorkspace(): Promise<AppState>
@@ -71,10 +95,12 @@ export interface PiBoxApi {
   onState(cb: (state: AppState) => void): () => void
   onOutput(cb: (data: string) => void): () => void
   rpc: PiBoxRpcApi
+  auth: PiBoxAuthApi
 }
 
 const api: PiBoxApi = {
   getState: () => ipcRenderer.invoke('pibox:getState'),
+  setOnboardingDone: (done) => ipcRenderer.invoke('pibox:setOnboardingDone', done),
   restart: () => ipcRenderer.invoke('pibox:restartVm'),
   editFile: (workspaceId, hostPath) => ipcRenderer.invoke('pibox:editFile', workspaceId, hostPath),
   addWorkspace: () => ipcRenderer.invoke('pibox:addWorkspace'),
@@ -149,6 +175,39 @@ const api: PiBoxApi = {
       const listener = (_event: Electron.IpcRendererEvent, payload: RpcState): void => cb(payload)
       ipcRenderer.on('pibox:rpc:state', listener)
       return () => ipcRenderer.removeListener('pibox:rpc:state', listener)
+    }
+  },
+
+  auth: {
+    providers: () => ipcRenderer.invoke('pibox:auth:providers'),
+    status: () => ipcRenderer.invoke('pibox:auth:status'),
+    login: (providerId, method) => ipcRenderer.invoke('pibox:auth:login', providerId, method),
+    logout: (providerId) => ipcRenderer.invoke('pibox:auth:logout', providerId),
+    respond: (response) => ipcRenderer.send('pibox:auth:respond', response),
+    cancel: (sessionId) => ipcRenderer.send('pibox:auth:cancel', sessionId),
+
+    onPrompt: (cb) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: AuthPromptRequest): void => cb(payload)
+      ipcRenderer.on('pibox:auth:prompt', listener)
+      return () => ipcRenderer.removeListener('pibox:auth:prompt', listener)
+    },
+
+    onEvent: (cb) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: AuthEventMessage): void => cb(payload)
+      ipcRenderer.on('pibox:auth:event', listener)
+      return () => ipcRenderer.removeListener('pibox:auth:event', listener)
+    },
+
+    onDone: (cb) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: AuthLoginResult): void => cb(payload)
+      ipcRenderer.on('pibox:auth:done', listener)
+      return () => ipcRenderer.removeListener('pibox:auth:done', listener)
+    },
+
+    onStatus: (cb) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: AuthStatus[]): void => cb(payload)
+      ipcRenderer.on('pibox:auth:status', listener)
+      return () => ipcRenderer.removeListener('pibox:auth:status', listener)
     }
   }
 }

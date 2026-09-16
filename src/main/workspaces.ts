@@ -71,6 +71,9 @@ interface StoreShape {
   version: number
   lastActiveId: string | null
   workspaces: Workspace[]
+  preferences?: {
+    onboardingDone?: boolean
+  }
 }
 
 function storeFile(): string {
@@ -93,7 +96,8 @@ export class WorkspaceStore {
         this.data = {
           version: 1,
           lastActiveId: parsed.lastActiveId ?? null,
-          workspaces: Array.isArray(parsed.workspaces) ? (parsed.workspaces as Workspace[]) : []
+          workspaces: Array.isArray(parsed.workspaces) ? (parsed.workspaces as Workspace[]) : [],
+          preferences: parsed.preferences ?? {}
         }
       }
     } catch (err) {
@@ -246,6 +250,15 @@ export class WorkspaceStore {
       if (!fs.existsSync(sizePath)) {
         fs.writeFileSync(sizePath, JSON.stringify({ cols: 100, rows: 30 }), 'utf8')
       }
+
+      // Seed the workspace credential file from the app-wide account file so a
+      // new workspace starts already signed in. pi reads this file directly.
+      const authPath = path.join(piDir, 'auth.json')
+      const sharedAuth = this.sharedAuthPath()
+      if (!fs.existsSync(authPath) && fs.existsSync(sharedAuth)) {
+        fs.copyFileSync(sharedAuth, authPath)
+        fs.chmodSync(authPath, 0o600)
+      }
     } catch (err) {
       console.error('Failed to prepare .pi directory:', err)
     }
@@ -269,6 +282,29 @@ export class WorkspaceStore {
     } catch (err) {
       console.error('Failed to prepare .pi-box config:', err)
     }
+  }
+
+  /** Host path of a workspace's pi credentials (`<ws>/.pi/auth.json`). */
+  authPath(id: string): string | null {
+    const ws = this.get(id)
+    return ws ? path.join(ws.path, '.pi', 'auth.json') : null
+  }
+
+  /**
+   * App-wide account file. Credentials written by pi-box are mirrored here so
+   * new workspaces can be seeded without re-authenticating.
+   */
+  sharedAuthPath(): string {
+    return path.join(app.getPath('userData'), 'auth.json')
+  }
+
+  getOnboardingDone(): boolean {
+    return this.data.preferences?.onboardingDone === true
+  }
+
+  setOnboardingDone(done: boolean): void {
+    this.data.preferences = { ...this.data.preferences, onboardingDone: done }
+    this.save()
   }
 
   /** Write the desired terminal size for a workspace's VM console. */

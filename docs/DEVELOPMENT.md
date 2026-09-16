@@ -201,6 +201,29 @@ RpcSessionManager ── net.Socket ──► host port ──forward──► g
 - Fonts are bundled (Inter / JetBrains Mono); the terminal follows the theme.
 - The loading screen is a compact, always-dark splash.
 
+### 4.8 Provider authentication
+
+pi implements `/login` only in its interactive TUI; over RPC it is neither
+listed nor executable. pi-box instead runs pi's own auth engine on the **host**:
+
+- `src/main/auth.ts` (`AuthService`) lazily dynamic-`import()`s
+  `@earendil-works/pi-ai` (ESM-only, so it cannot be `require`d) and
+  `…/providers/all`, builds a `Models` collection, and calls
+  `models.login(providerId, method, interaction)`. `AuthInteraction`
+  (`prompt` + `notify`) is bridged to the renderer over `pibox:auth:*` IPC.
+- `src/main/credential-store.ts` (`FileCredentialStore`) is pi-ai's
+  `CredentialStore` backed by `<workspace>/.pi/auth.json`: pi's format, `0600`
+  mode, and `proper-lockfile` locking, so the VM's pi and the host can safely
+  share the file. Writes are mirrored to `~/.config/pi-box/auth.json`, which
+  seeds new workspaces.
+- The renderer drives it through `lib/useAuth.ts` plus `AuthDialog`,
+  `ProviderList`, `ProvidersSettings`, and `Onboarding`. Login events can arrive
+  before `login()` resolves, so the hook buffers them per session id.
+- After a credential change the running pi process is recycled
+  (`rpc.teardown()` → `rpc.ensureSession()`) so it reloads `auth.json`.
+- The host `@earendil-works/pi-ai` version must match the VM's pi version (both
+  `0.85.1`); it is pinned exactly in `package.json`.
+
 ---
 
 ## 5. Tests & CI
@@ -210,6 +233,8 @@ RpcSessionManager ── net.Socket ──► host port ──forward──► g
     the event reducer (streaming, tool running/done, optimistic user message).
   - `src/main/rpc.test.ts` — `drainJsonl` framing, `normalizeStats`,
     `summarizeSession`.
+  - `src/main/credential-store.test.ts` — auth.json read/modify/delete,
+    `0600` mode, mirroring, and seeding from the shared file.
 - `.github/workflows/ci.yml` runs `npm ci` → `npm run typecheck` → `npm test` →
   `npm run build` on pushes to `main` and on every pull request.
 - Integration is still verified manually: `scripts/spike-rpc.cjs` for the

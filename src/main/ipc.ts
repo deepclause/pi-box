@@ -1,7 +1,9 @@
 import { clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
 import path from 'node:path'
 import type { AppState, FirewallRule, OpenResult } from '../shared/types'
+import type { AuthMethod, AuthPromptResponse } from '../shared/auth-types'
 import type { RpcExtensionUIResponse, RpcImage, RpcStreamingBehavior } from '../shared/rpc-types'
+import type { AuthService } from './auth'
 import type { RpcSessionManager } from './rpc'
 import type { VmManager } from './vm'
 import type { WorkspaceStore } from './workspaces'
@@ -12,6 +14,7 @@ export interface IpcContext {
   vm: VmManager
   store: WorkspaceStore
   rpc: RpcSessionManager
+  auth: AuthService
   buildState: () => AppState
   broadcast: () => void
   restartVm: () => Promise<void>
@@ -19,7 +22,7 @@ export interface IpcContext {
 }
 
 export function registerIpc(ctx: IpcContext): void {
-  const { vm, store, rpc } = ctx
+  const { vm, store, rpc, auth } = ctx
 
   ipcMain.handle('pibox:getState', () => ctx.buildState())
 
@@ -182,6 +185,32 @@ export function registerIpc(ctx: IpcContext): void {
 
   ipcMain.on('pibox:rpc:extensionUi', (_event, response: RpcExtensionUIResponse) => {
     rpc.respondExtensionUi(response)
+  })
+
+  // --- native provider authentication (pi-ai on the host) ---
+
+  ipcMain.handle('pibox:auth:providers', async () => auth.providers())
+
+  ipcMain.handle('pibox:auth:status', async () => auth.status())
+
+  ipcMain.handle('pibox:auth:login', async (_event, providerId: string, method: AuthMethod) =>
+    auth.login(providerId, method)
+  )
+
+  ipcMain.handle('pibox:auth:logout', async (_event, providerId: string) => auth.logout(providerId))
+
+  ipcMain.on('pibox:auth:respond', (_event, response: AuthPromptResponse) => {
+    auth.respond(response)
+  })
+
+  ipcMain.on('pibox:auth:cancel', (_event, sessionId: string) => {
+    auth.cancel(sessionId)
+  })
+
+  ipcMain.handle('pibox:setOnboardingDone', (_event, done: boolean) => {
+    store.setOnboardingDone(done)
+    ctx.broadcast()
+    return ctx.buildState()
   })
 
   ipcMain.handle('pibox:addPortForward', async (_event, config: { hostPort: number; guestPort: number; guestHost?: string }) => {

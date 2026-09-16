@@ -6,6 +6,10 @@ import WorkspaceSidebar from './components/WorkspaceSidebar'
 import TerminalView from './components/TerminalView'
 import ChatView from './components/ChatView'
 import AppHeader, { type AppView } from './components/AppHeader'
+import AuthDialog from './components/AuthDialog'
+import ProvidersSettings from './components/ProvidersSettings'
+import Onboarding from './components/Onboarding'
+import { useAuth } from './lib/useAuth'
 
 export default function App() {
   const [state, setState] = useState<AppState | null>(null)
@@ -34,6 +38,9 @@ export default function App() {
     }
   })
   const [networkOpen, setNetworkOpen] = useState(false)
+  const [providersOpen, setProvidersOpen] = useState(false)
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
+  const auth = useAuth()
 
   useEffect(() => {
     let mounted = true
@@ -103,6 +110,13 @@ export default function App() {
     setView(next)
   }, [])
 
+  const openProviders = useCallback(() => setProvidersOpen(true), [])
+
+  const completeOnboarding = useCallback(() => {
+    setOnboardingDismissed(true)
+    window.pibox.setOnboardingDone(true).catch((err) => console.error(err))
+  }, [])
+
   const openTerminal = useCallback(() => setActiveView('terminal'), [setActiveView])
 
   // Open a file in vi inside a new tmux window, then reveal the terminal so the
@@ -153,6 +167,21 @@ export default function App() {
   }, [])
 
   const ready = state?.status === 'ready'
+  const hasCredentials = auth.status.length > 0
+  const showOnboarding =
+    !onboardingDismissed &&
+    auth.loaded &&
+    !!state &&
+    state.status === 'ready' &&
+    !state.onboardingDone &&
+    !hasCredentials
+
+  // Anyone who already has credentials has effectively completed setup.
+  useEffect(() => {
+    if (hasCredentials && state && !state.onboardingDone) {
+      window.pibox.setOnboardingDone(true).catch((err) => console.error(err))
+    }
+  }, [hasCredentials, state])
 
   return (
     <div className="app">
@@ -180,12 +209,19 @@ export default function App() {
             onRestart={restart}
             onToggleNetwork={toggleNetwork}
             onOpenNetworkSettings={() => setNetworkOpen(true)}
+            hasCredentials={hasCredentials}
+            onOpenProviders={openProviders}
           />
           {/* Both views stay mounted so the terminal keeps receiving console
               output (and its scrollback) while the chat is on screen. */}
           <div className="view-container">
             <div className="view-slot" data-hidden={view !== 'chat'}>
-              <ChatView state={state} sessionsVisible={sessionsVisible} onOpenTerminal={openTerminal} />
+              <ChatView
+                state={state}
+                sessionsVisible={sessionsVisible}
+                onOpenTerminal={openTerminal}
+                onOpenProviders={openProviders}
+              />
             </div>
             <div className="view-slot" data-hidden={view !== 'terminal'}>
               <TerminalView state={state} theme={theme} visible={view === 'terminal'} />
@@ -195,6 +231,36 @@ export default function App() {
       </div>
 
       {!ready && <LoadingScreen status={state?.status} message={state?.statusMessage} onRestart={restart} />}
+
+      {showOnboarding ? (
+        <Onboarding
+          providers={auth.providers}
+          status={auth.status}
+          statusFor={auth.statusFor}
+          onLogin={auth.start}
+          vmReady={ready}
+          onComplete={completeOnboarding}
+        />
+      ) : null}
+
+      {providersOpen ? (
+        <ProvidersSettings
+          providers={auth.providers}
+          status={auth.status}
+          statusFor={auth.statusFor}
+          onLogin={auth.start}
+          onLogout={(providerId) => void auth.logout(providerId)}
+          onClose={() => setProvidersOpen(false)}
+        />
+      ) : null}
+
+      <AuthDialog
+        session={auth.session}
+        providerName={auth.providerName}
+        onRespond={auth.respond}
+        onCancel={auth.cancel}
+        onDismiss={auth.dismiss}
+      />
 
       {networkOpen && (
         <NetworkSettings
