@@ -1,8 +1,9 @@
-import type { RpcEvent } from '@shared/rpc-types'
+import type { RpcEvent, RpcImage } from '@shared/rpc-types'
 
 export type ChatBlock =
   | { type: 'text'; text: string }
   | { type: 'thinking'; text: string }
+  | { type: 'image'; data: string; mimeType: string }
   | {
       type: 'toolCall'
       id: string
@@ -47,7 +48,9 @@ export function blocksFromContent(content: unknown): ChatBlock[] {
     if (!block) continue
     if (block.type === 'text') blocks.push({ type: 'text', text: String(block.text ?? '') })
     else if (block.type === 'thinking') blocks.push({ type: 'thinking', text: String(block.thinking ?? '') })
-    else if (block.type === 'toolCall') {
+    else if (block.type === 'image') {
+      blocks.push({ type: 'image', data: String(block.data ?? ''), mimeType: String(block.mimeType ?? 'image/png') })
+    } else if (block.type === 'toolCall') {
       blocks.push({
         type: 'toolCall',
         id: String(block.id ?? ''),
@@ -164,8 +167,12 @@ export function messagesFromEntries(data: unknown): ChatMessage[] {
 }
 
 /** Optimistic user message shown immediately on send. */
-export function makeUserMessage(text: string): ChatMessage {
-  return { id: nextLocalId(), role: 'user', blocks: [{ type: 'text', text }], pending: true }
+export function makeUserMessage(text: string, images: RpcImage[] = []): ChatMessage {
+  const blocks: ChatBlock[] = []
+  if (text) blocks.push({ type: 'text', text })
+  for (const image of images) blocks.push({ type: 'image', data: image.data, mimeType: image.mimeType })
+  if (blocks.length === 0) blocks.push({ type: 'text', text: '' })
+  return { id: nextLocalId(), role: 'user', blocks, pending: true }
 }
 
 function updateMessage(state: ChatState, id: string, update: (message: ChatMessage) => ChatMessage): ChatState {

@@ -6,6 +6,8 @@ import type {
   RpcCommand,
   RpcEvent,
   RpcExtensionUIResponse,
+  RpcForkMessage,
+  RpcImage,
   RpcModelInfo,
   RpcSessionStats,
   RpcSessionSummary,
@@ -425,24 +427,55 @@ export class RpcSessionManager extends EventEmitter {
     return response.data
   }
 
-  async prompt(message: string, behavior?: RpcStreamingBehavior): Promise<void> {
+  async prompt(message: string, behavior?: RpcStreamingBehavior, images?: RpcImage[]): Promise<void> {
     await this.ensureSession()
     const command: Record<string, unknown> = { type: 'prompt', message }
     if (behavior) command.streamingBehavior = behavior
+    if (images?.length) command.images = images
     const response = await this.connection!.send(command)
     if (!response.success) throw new Error(response.error ?? 'prompt rejected')
   }
 
-  async steer(message: string): Promise<void> {
+  async steer(message: string, images?: RpcImage[]): Promise<void> {
     await this.ensureSession()
-    const response = await this.connection!.send({ type: 'steer', message })
+    const command: Record<string, unknown> = { type: 'steer', message }
+    if (images?.length) command.images = images
+    const response = await this.connection!.send(command)
     if (!response.success) throw new Error(response.error ?? 'steer rejected')
   }
 
-  async followUp(message: string): Promise<void> {
+  async followUp(message: string, images?: RpcImage[]): Promise<void> {
     await this.ensureSession()
-    const response = await this.connection!.send({ type: 'follow_up', message })
+    const command: Record<string, unknown> = { type: 'follow_up', message }
+    if (images?.length) command.images = images
+    const response = await this.connection!.send(command)
     if (!response.success) throw new Error(response.error ?? 'follow_up rejected')
+  }
+
+  async getForkMessages(): Promise<RpcForkMessage[]> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'get_fork_messages' })
+    const data = (response.data ?? {}) as { messages?: Array<Record<string, unknown>> }
+    return (data.messages ?? []).map((message) => ({
+      entryId: String(message.entryId ?? ''),
+      text: String(message.text ?? '')
+    }))
+  }
+
+  /** Fork from a previous user message; returns the forked message text. */
+  async fork(entryId: string): Promise<string> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'fork', entryId })
+    if (!response.success) throw new Error(response.error ?? 'fork failed')
+    await this.refreshState()
+    return String((response.data as { text?: string } | undefined)?.text ?? '')
+  }
+
+  async clone(): Promise<void> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'clone' })
+    if (!response.success) throw new Error(response.error ?? 'clone failed')
+    await this.refreshState()
   }
 
   async abort(): Promise<void> {

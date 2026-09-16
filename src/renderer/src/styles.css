@@ -1732,3 +1732,118 @@ body {
 .ui-dialog-editor:focus {
   border-color: var(--accent);
 }
+
+/* ---------- Attachments, fork menu, actions (Phase 4) ---------- */
+
+.chat-action {
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.chat-action:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.chat-action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.chat-attach {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.chat-attach:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.chat-attach:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.chat-attachments {
+  max-width: 760px;
+  margin: 0 auto 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chat-attachment {
+  position: relative;
+}
+
+.chat-attachment img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.chat-attachment-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-image {
+  display: block;
+  max-width: 320px;
+  max-height: 320px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin: 6px 0;
+}
+
+.chat-fork-menu {
+  max-width: 760px;
+  margin: 0 auto 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.chat-fork-head {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  padding: 4px 8px;
+}
+
+.chat-fork-menu .chat-command-desc {
+  white-space: normal;
+}

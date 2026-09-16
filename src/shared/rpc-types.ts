@@ -55,6 +55,14 @@ export type RpcEvent = { type: string } & Record<string, unknown>
 
 export type RpcStreamingBehavior = 'steer' | 'followUp'
 
+/** Image content attached to a prompt (pi's `ImageContent`). */
+export interface RpcImage {
+  type: 'image'
+  /** Base64 data without the `data:` prefix. */
+  data: string
+  mimeType: string
+}
+
 export interface RpcModelOption extends RpcModelInfo {}
 
 /** Command available via the composer's `/` menu. */
@@ -87,6 +95,11 @@ export type RpcExtensionUIResponse =
   | { type: 'extension_ui_response'; id: string; cancelled: true }
 
 /** A pending dialog requested by an extension. */
+export interface RpcForkMessage {
+  entryId: string
+  text: string
+}
+
 export interface RpcUiDialog {
   id: string
   method: 'select' | 'confirm' | 'input' | 'editor'

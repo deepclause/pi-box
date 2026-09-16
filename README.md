@@ -6,8 +6,14 @@ Native desktop app for macOS, Linux and Windows that wraps
 [AgentVM](https://github.com/deepclause/agentvm) — a lightweight WASM-based
 Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
-- a **terminal** that boots straight into the **pi coding agent** (inside tmux),
-- **extra shell sessions** via tmux windows (a “new shell” button sends `Ctrl+B c`),
+- a **chat UI** for pi (Claude-Desktop style): streaming replies, thinking
+  blocks, live tool cards, model/thinking pickers, token & context stats,
+  image attachments, and a `/` command palette — driven by a headless
+  `pi --mode rpc` process inside the VM,
+- **multiple pi sessions** per workspace (new, switch, rename, delete, fork,
+  clone, export), listed in a sidebar and backed by the workspace's session files,
+- a **terminal** (tmux) for shells; the pi **TUI** is one click away in the header,
+- **extra shell windows** via tmux (the “new shell” button sends `Ctrl+B c`),
 - a full-featured **terminal**: truecolor, inline images (kitty protocol),
   clickable OSC 8 hyperlinks, and clipboard copy/paste (keyboard + right-click menu),
 - **workspaces**: host folders that are mounted into the VM,
@@ -26,12 +32,12 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 ![status](https://img.shields.io/badge/status-prototype-orange)
 
-> **Startup note:** booting to a shell is fast because the VM is snapshotted
-> with Wizer, but launching `pi` itself (a Node/V8 process inside the emulated
-> RISC-V VM) is currently slow — expect roughly a minute before the splash
-> screen hands over to pi. We set `PI_OFFLINE=1` at startup so pi skips its
-> slow network downloads (fd/ripgrep, catalog refresh), which keeps this as
-> fast as possible.
+> **Startup note:** the VM boots to a shell quickly (snapshotted with Wizer),
+> but starting `pi` inside the emulated RISC-V VM takes ~30 s — it is a V8
+> process running under emulation. The chat pane shows a “Starting pi…” state
+> while it boots and the terminal is usable meanwhile. We set `PI_OFFLINE=1` so
+> pi skips its startup network downloads (fd/ripgrep, catalog refresh), which
+> keeps this as fast as possible.
 
 ## Download
 
@@ -139,10 +145,13 @@ On top of Electron:
 2. Main process boots `AgentVM` with the **last used workspace** mounted at
    `/workspace` (status: “Booting AgentVM…”). With persistence enabled,
    AgentVM mounts the ext4 overlay root first.
-3. When the shell prompt appears, the startup script launches tmux running `pi`
-   (status: “Starting pi…”).
-4. When pi's TUI has rendered (detected via its “Press ctrl+o” startup hint),
-   the loading overlay disappears and the terminal shows pi inside tmux.
+3. When the shell prompt appears, the startup script brings up the network,
+   starts the guest RPC bridge (which warms a `pi --mode rpc` process), and
+   launches tmux with a shell. The VM is marked ready shortly after, so the
+   loading overlay clears quickly.
+4. The chat view opens and connects to the bridge; while pi boots it shows a
+   “Starting pi…” state, then renders the live transcript. The terminal tab is
+   a tmux shell; the pi TUI is available from the header button.
 
 ---
 
@@ -248,7 +257,11 @@ Release binaries are built by GitHub Actions on every published release — see
 
 ## Known limitations
 
-- pi runs inside tmux on the VM's serial console; tmux provides PTYs and
+- The chat runs `pi --mode rpc` headless in the VM and reaches it over a guest
+  TCP bridge exposed with AgentVM port forwarding (see
+  `docs/pi-rpc-ui-design.md`). Starting pi takes ~30 s under emulation; the VM
+  is single-hart, so run one pi process at a time (switching sessions reuses it).
+- The terminal is tmux on the VM's serial console; tmux provides PTYs and
   `SIGWINCH` propagation for its panes.
 - The AgentVM host mount is served over 9p/WASI, which has no `chmod` in WASI
   preview1: mode changes (`fs.chmod`/`fs.fchmod`) return `EPROTO` and creation

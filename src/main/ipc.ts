@@ -1,7 +1,7 @@
 import { clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
 import path from 'node:path'
 import type { AppState, FirewallRule, OpenResult } from '../shared/types'
-import type { RpcExtensionUIResponse, RpcStreamingBehavior } from '../shared/rpc-types'
+import type { RpcExtensionUIResponse, RpcImage, RpcStreamingBehavior } from '../shared/rpc-types'
 import type { RpcSessionManager } from './rpc'
 import type { VmManager } from './vm'
 import type { WorkspaceStore } from './workspaces'
@@ -92,18 +92,30 @@ export function registerIpc(ctx: IpcContext): void {
 
   ipcMain.handle('pibox:rpc:getEntries', async () => rpc.getEntries())
 
-  ipcMain.handle('pibox:rpc:prompt', async (_event, message: string, behavior?: RpcStreamingBehavior) => {
-    await rpc.prompt(message, behavior)
+  ipcMain.handle('pibox:rpc:prompt', async (_event, message: string, behavior?: RpcStreamingBehavior, images?: RpcImage[]) => {
+    await rpc.prompt(message, behavior, images)
     return rpc.state
   })
 
-  ipcMain.handle('pibox:rpc:steer', async (_event, message: string) => {
-    await rpc.steer(message)
+  ipcMain.handle('pibox:rpc:steer', async (_event, message: string, images?: RpcImage[]) => {
+    await rpc.steer(message, images)
     return rpc.state
   })
 
-  ipcMain.handle('pibox:rpc:followUp', async (_event, message: string) => {
-    await rpc.followUp(message)
+  ipcMain.handle('pibox:rpc:followUp', async (_event, message: string, images?: RpcImage[]) => {
+    await rpc.followUp(message, images)
+    return rpc.state
+  })
+
+  ipcMain.handle('pibox:rpc:getForkMessages', async () => rpc.getForkMessages())
+
+  ipcMain.handle('pibox:rpc:fork', async (_event, entryId: string) => {
+    const text = await rpc.fork(entryId)
+    return { state: rpc.state, text }
+  })
+
+  ipcMain.handle('pibox:rpc:clone', async () => {
+    await rpc.clone()
     return rpc.state
   })
 

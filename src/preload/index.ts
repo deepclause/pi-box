@@ -4,6 +4,8 @@ import type {
   RpcCommand,
   RpcEvent,
   RpcExtensionUIResponse,
+  RpcForkMessage,
+  RpcImage,
   RpcModelInfo,
   RpcSessionStats,
   RpcSessionSummary,
@@ -15,9 +17,9 @@ export interface PiBoxRpcApi {
   getState(): Promise<RpcState>
   open(): Promise<RpcState>
   getEntries(): Promise<unknown>
-  prompt(message: string, behavior?: RpcStreamingBehavior): Promise<RpcState>
-  steer(message: string): Promise<RpcState>
-  followUp(message: string): Promise<RpcState>
+  prompt(message: string, behavior?: RpcStreamingBehavior, images?: RpcImage[]): Promise<RpcState>
+  steer(message: string, images?: RpcImage[]): Promise<RpcState>
+  followUp(message: string, images?: RpcImage[]): Promise<RpcState>
   abort(): Promise<RpcState>
   clearQueue(): Promise<{ steering: string[]; followUp: string[] }>
   getAvailableModels(): Promise<RpcModelInfo[]>
@@ -33,6 +35,9 @@ export interface PiBoxRpcApi {
   switchSession(file: string): Promise<RpcState>
   deleteSession(file: string): Promise<RpcState>
   exportHtml(outputPath?: string): Promise<{ path: string }>
+  getForkMessages(): Promise<RpcForkMessage[]>
+  fork(entryId: string): Promise<{ state: RpcState; text: string }>
+  clone(): Promise<RpcState>
   respondExtensionUi(response: RpcExtensionUIResponse): void
   onEvent(cb: (event: RpcEvent) => void): () => void
   onState(cb: (state: RpcState) => void): () => void
@@ -106,9 +111,9 @@ const api: PiBoxApi = {
     getState: () => ipcRenderer.invoke('pibox:rpc:state'),
     open: () => ipcRenderer.invoke('pibox:rpc:open'),
     getEntries: () => ipcRenderer.invoke('pibox:rpc:getEntries'),
-    prompt: (message, behavior) => ipcRenderer.invoke('pibox:rpc:prompt', message, behavior),
-    steer: (message) => ipcRenderer.invoke('pibox:rpc:steer', message),
-    followUp: (message) => ipcRenderer.invoke('pibox:rpc:followUp', message),
+    prompt: (message, behavior, images) => ipcRenderer.invoke('pibox:rpc:prompt', message, behavior, images),
+    steer: (message, images) => ipcRenderer.invoke('pibox:rpc:steer', message, images),
+    followUp: (message, images) => ipcRenderer.invoke('pibox:rpc:followUp', message, images),
     abort: () => ipcRenderer.invoke('pibox:rpc:abort'),
     clearQueue: () => ipcRenderer.invoke('pibox:rpc:clearQueue'),
     getAvailableModels: () => ipcRenderer.invoke('pibox:rpc:getAvailableModels'),
@@ -124,6 +129,9 @@ const api: PiBoxApi = {
     switchSession: (file) => ipcRenderer.invoke('pibox:rpc:switchSession', file),
     deleteSession: (file) => ipcRenderer.invoke('pibox:rpc:deleteSession', file),
     exportHtml: (outputPath) => ipcRenderer.invoke('pibox:rpc:exportHtml', outputPath),
+    getForkMessages: () => ipcRenderer.invoke('pibox:rpc:getForkMessages'),
+    fork: (entryId) => ipcRenderer.invoke('pibox:rpc:fork', entryId),
+    clone: () => ipcRenderer.invoke('pibox:rpc:clone'),
     respondExtensionUi: (response) => ipcRenderer.send('pibox:rpc:extensionUi', response),
 
     onEvent: (cb) => {

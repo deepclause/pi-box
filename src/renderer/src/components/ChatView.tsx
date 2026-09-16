@@ -4,6 +4,8 @@ import type {
   RpcCommand,
   RpcEvent,
   RpcExtensionUIResponse,
+  RpcForkMessage,
+  RpcImage,
   RpcModelInfo,
   RpcSessionStats,
   RpcSessionSummary,
@@ -21,7 +23,14 @@ import {
 import Markdown from './Markdown'
 import SessionsPanel from './SessionsPanel'
 import ExtensionUi from './ExtensionUi'
-import { SendIcon, StopIcon } from './icons'
+import { PaperclipIcon, SendIcon, StopIcon } from './icons'
+
+interface Attachment {
+  id: number
+  name: string
+  mimeType: string
+  data: string
+}
 
 const EMPTY_STATE: ChatState = { messages: [], activeAssistantId: null }
 
@@ -128,6 +137,9 @@ function Message({ message }: { message: ChatMessage }) {
         {message.blocks.map((block, index) => {
           if (block.type === 'text') return <Markdown key={index} text={block.text} />
           if (block.type === 'thinking') return <ThinkingBlock key={index} text={block.text} streaming={message.streaming} />
+          if (block.type === 'image') {
+            return <img className="chat-image" key={index} src={`data:${block.mimeType};base64,${block.data}`} alt="attachment" />
+          }
           return <ToolCard key={index} block={block} />
         })}
         {message.streaming ? <span className="chat-cursor" /> : null}
@@ -170,12 +182,33 @@ export default function ChatView({ state }: { state: AppState | null }) {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [statuses, setStatuses] = useState<Record<string, string>>({})
   const [widgetLines, setWidgetLines] = useState<string[]>([])
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [forkMessages, setForkMessages] = useState<RpcForkMessage[] | null>(null)
   const [commandIndex, setCommandIndex] = useState(0)
   const transcriptRef = useRef<HTMLDivElement | null>(null)
   const openingRef = useRef(false)
   const retryRef = useRef(0)
   const noticeSeq = useRef(0)
   const toastSeq = useRef(0)
+  const attachSeq = useRef(0)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const addImageFiles = useCallback((files: FileList | File[]) => {
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) continue
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = String(reader.result ?? '')
+        const comma = result.indexOf(',')
+        const data = comma >= 0 ? result.slice(comma + 1) : result
+        setAttachments((prev) => [
+          ...prev,
+          { id: ++attachSeq.current, name: file.name || 'image', mimeType: file.type || 'image/png', data }
+        ])
+      }
+      reader.readAsDataURL(file)
+    }
+  }, [])
 
   const reloadSessions = useCallback(async () => {
     try {
@@ -322,18 +355,20 @@ export default function ChatView({ state }: { state: AppState | null }) {
 
   const send = useCallback(async () => {
     const text = input.trim()
-    if (!text || rpcState.status !== 'ready') return
+    if ((!text && attachments.length === 0) || rpcState.status !== 'ready') return
+    const images: RpcImage[] = attachments.map((item) => ({ type: 'image', data: item.data, mimeType: item.mimeType }))
     setInput('')
+    setAttachments([])
     setCommandIndex(0)
-    setChat((prev) => ({ ...prev, messages: [...prev.messages, makeUserMessage(text)] }))
+    setChat((prev) => ({ ...prev, messages: [...prev.messages, makeUserMessage(text, images)] }))
     try {
       const behavior = rpcState.isStreaming ? 'steer' : undefined
-      const next = await window.pibox.rpc.prompt(text, behavior)
+      const next = await window.pibox.rpc.prompt(text, behavior, images)
       setRpcState(next)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
-  }, [input, rpcState.status, rpcState.isStreaming])
+  }, [input, attachments, rpcState.status, rpcState.isStreaming])
 
   const stop = useCallback(() => {
     window.pibox.rpc
@@ -411,6 +446,38 @@ export default function ChatView({ state }: { state: AppState | null }) {
     window.pibox.rpc.respondExtensionUi(response)
     setDialogs((prev) => prev.slice(1))
   }, [])
+
+  const openFork = useCallback(async () => {
+    try {
+      setForkMessages(await window.pibox.rpc.getForkMessages())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [])
+
+  const doFork = useCallback(
+    async (entryId: string) => {
+      setForkMessages(null)
+      try {
+        await window.pibox.rpc.fork(entryId)
+        await reloadTranscript()
+        await reloadSessions()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
+    },
+    [reloadTranscript, reloadSessions]
+  )
+
+  const cloneSession = useCallback(async () => {
+    try {
+      setRpcState(await window.pibox.rpc.clone())
+      await reloadTranscript()
+      await reloadSessions()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [reloadTranscript, reloadSessions])
 
   // Cmd/Ctrl+N starts a fresh session.
   useEffect(() => {
@@ -565,10 +632,48 @@ export default function ChatView({ state }: { state: AppState | null }) {
                   {value}
                 </span>
               ))}
+              <button className="chat-action" title="Fork from a previous message" onClick={() => void openFork()} disabled={rpcState.status !== 'ready'}>
+                Fork
+              </button>
+              <button className="chat-action" title="Clone this session" onClick={() => void cloneSession()} disabled={rpcState.status !== 'ready'}>
+                Clone
+              </button>
               <UsageBar stats={rpcState.stats} />
               {rpcState.isCompacting ? <span className="chat-streaming">compacting</span> : null}
               {rpcState.isStreaming ? <span className="chat-streaming">streaming</span> : null}
             </div>
+
+            {forkMessages ? (
+              <div className="chat-fork-menu">
+                <div className="chat-fork-head">Fork from a user message</div>
+                {forkMessages.length === 0 ? <div className="empty-hint">No earlier user messages.</div> : null}
+                {forkMessages.map((message) => (
+                  <button className="chat-command" key={message.entryId} onClick={() => void doFork(message.entryId)}>
+                    <span className="chat-command-desc">{message.text.slice(0, 100)}</span>
+                  </button>
+                ))}
+                <button className="text-btn" onClick={() => setForkMessages(null)}>
+                  Cancel
+                </button>
+              </div>
+            ) : null}
+
+            {attachments.length ? (
+              <div className="chat-attachments">
+                {attachments.map((item) => (
+                  <div className="chat-attachment" key={item.id}>
+                    <img src={`data:${item.mimeType};base64,${item.data}`} alt={item.name} />
+                    <button
+                      className="chat-attachment-remove"
+                      title="Remove"
+                      onClick={() => setAttachments((prev) => prev.filter((entry) => entry.id !== item.id))}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
 
             {queue.steering.length || queue.followUp.length ? (
               <div className="chat-queue">
@@ -603,6 +708,25 @@ export default function ChatView({ state }: { state: AppState | null }) {
                   ))}
                 </div>
               ) : null}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={(event) => {
+                  if (event.target.files) addImageFiles(event.target.files)
+                  event.target.value = ''
+                }}
+              />
+              <button
+                className="chat-attach"
+                title="Attach image"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={rpcState.status !== 'ready'}
+              >
+                <PaperclipIcon size={15} />
+              </button>
               <textarea
                 className="chat-input"
                 placeholder={rpcState.isStreaming ? 'Steer pi…  (Enter to send)' : 'Message pi…  (Enter to send, Shift+Enter for newline, / for commands)'}
@@ -612,6 +736,22 @@ export default function ChatView({ state }: { state: AppState | null }) {
                   setCommandIndex(0)
                 }}
                 onKeyDown={onKeyDown}
+                onPaste={(event) => {
+                  const files = Array.from(event.clipboardData.files)
+                  if (files.some((file) => file.type.startsWith('image/'))) {
+                    event.preventDefault()
+                    addImageFiles(files)
+                  }
+                }}
+                onDrop={(event) => {
+                  if (event.dataTransfer.files.length) {
+                    event.preventDefault()
+                    addImageFiles(event.dataTransfer.files)
+                  }
+                }}
+                onDragOver={(event) => {
+                  if (event.dataTransfer.types.includes('Files')) event.preventDefault()
+                }}
                 rows={3}
                 disabled={rpcState.status !== 'ready'}
               />
@@ -620,7 +760,12 @@ export default function ChatView({ state }: { state: AppState | null }) {
                   <StopIcon size={15} />
                 </button>
               ) : (
-                <button className="chat-send" title="Send" onClick={() => void send()} disabled={!input.trim() || rpcState.status !== 'ready'}>
+                <button
+                  className="chat-send"
+                  title="Send"
+                  onClick={() => void send()}
+                  disabled={(!input.trim() && attachments.length === 0) || rpcState.status !== 'ready'}
+                >
                   <SendIcon size={15} />
                 </button>
               )}

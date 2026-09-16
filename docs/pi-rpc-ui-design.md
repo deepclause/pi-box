@@ -774,10 +774,11 @@ sessions have no file until the first message). Extension UI dialogs
 image attachments are still open (Phase 4).
 
 **Phase 4 — polish / power features. ◑ partial.**
-Done: inline session rename (`set_session_name`), `export_html`, and a
-Cmd/Ctrl+N new-session shortcut. Still open: `get_tree` branch navigator,
-terminal tabs via `tmux list-windows`, explicit reconnect, `maxLiveSessions`,
-per-session settings, image attachments, and the rest of the TUI keybindings.
+Done: inline rename (`set_session_name`), `export_html`, Cmd/Ctrl+N, image
+attachments (paste/drop/picker), fork-from-message and clone, and a README
+refresh. Still open: `get_tree` branch navigator, terminal tabs via
+`tmux list-windows`, explicit reconnect, `maxLiveSessions`, per-session
+settings, and the rest of the TUI keybindings.
 
 ---
 
