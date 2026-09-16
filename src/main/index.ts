@@ -82,14 +82,26 @@ async function restartVm(): Promise<void> {
 }
 
 function createWindow(): void {
+  const isMac = process.platform === 'darwin'
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#1e1e21',
     title: 'pi-box',
     autoHideMenuBar: true,
+    // Native macOS chrome: overlay the traffic lights on our own header and
+    // blur the desktop behind the translucent sidebars. Other platforms keep
+    // the normal frame.
+    ...(isMac
+      ? {
+          titleBarStyle: 'hiddenInset' as const,
+          trafficLightPosition: { x: 16, y: 17 },
+          vibrancy: 'under-window' as const,
+          visualEffectState: 'active' as const
+        }
+      : {}),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,

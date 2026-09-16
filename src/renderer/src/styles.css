@@ -1,20 +1,21 @@
 :root {
-  /* Neutral, industrial grey palette (desktop-app feel). */
+  /* macOS-inspired dark palette. */
   --bg: #1e1e21;
   --bg-panel: #26262a;
-  --surface: #2e2e33;
-  --surface-hover: #35353b;
-  --surface-active: #3d3d44;
-  --border: #3a3a41;
+  --chrome: rgba(34, 34, 38, 0.72);
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-hover: rgba(255, 255, 255, 0.09);
+  --surface-active: rgba(255, 255, 255, 0.13);
+  --border: rgba(255, 255, 255, 0.1);
   --border-soft: rgba(255, 255, 255, 0.06);
-  --text: #e8e8ea;
-  --text-dim: #a4a4ac;
-  --text-faint: #6f6f79;
-  --accent: #7c9cf5;
-  --cyan: #6fc3e0;
-  --green: #7fc98a;
-  --amber: #e0b060;
-  --red: #e8757f;
+  --text: #f2f2f4;
+  --text-dim: #a0a0a8;
+  --text-faint: #6e6e78;
+  --accent: #0a84ff;
+  --cyan: #64d2ff;
+  --green: #30d158;
+  --amber: #ffd60a;
+  --red: #ff453a;
   --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
   --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     sans-serif;
@@ -33,7 +34,8 @@ body,
 }
 
 body {
-  background: var(--bg);
+  /* Transparent so the window's vibrancy/background shows through the chrome. */
+  background: transparent;
   color: var(--text);
   font-family: var(--sans);
   font-size: 13px;
@@ -2080,4 +2082,77 @@ body {
 .chat-menu-item:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+/* ---------- macOS-inspired chrome ---------- */
+
+.sidebar,
+.sessions-panel,
+.terminal-header {
+  background: var(--chrome);
+  -webkit-backdrop-filter: saturate(180%) blur(30px);
+  backdrop-filter: saturate(180%) blur(30px);
+}
+
+.sidebar,
+.sessions-panel {
+  border-right: 1px solid var(--border-soft);
+}
+
+.terminal-header {
+  height: 52px;
+  border-bottom: 1px solid var(--border-soft);
+  -webkit-app-region: drag;
+}
+
+.terminal-header button,
+.terminal-header select,
+.terminal-header input,
+.terminal-header .view-switch,
+.terminal-header .status-pill,
+.terminal-header .network-btn {
+  -webkit-app-region: no-drag;
+}
+
+[data-platform='darwin'] .terminal-header {
+  padding-left: 84px;
+}
+
+/* Segmented control (Chat / Terminal) */
+.view-switch {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.view-switch-btn {
+  border-radius: 6px;
+  padding: 3px 13px;
+  font-weight: 500;
+}
+
+.view-switch-btn[data-active='true'] {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* Rounded, macOS-ish controls */
+.btn,
+.chat-select,
+.chat-input,
+.ui-dialog-input,
+.ui-dialog-editor {
+  border-radius: 7px;
+}
+
+.chat-send {
+  border-radius: 8px;
+  color: #ffffff;
+}
+
+.chat-send:hover:not(:disabled) {
+  background: #3395ff;
 }
