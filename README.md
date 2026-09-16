@@ -70,7 +70,7 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 ## Network & persistence
 
-Built on `deepclause-agentvm` 0.3.2:
+Built on `deepclause-agentvm` 0.3.3:
 
 - **Network on/off** — toggle guest networking at runtime (header button or gear menu).
 - **Port forwarding** — expose guest TCP servers on host ports; add/remove at runtime.
@@ -202,7 +202,7 @@ npm install
 npm run dev
 ```
 
-> `deepclause-agentvm` is an exact npm pin (currently `0.3.2`), so the app uses
+> `deepclause-agentvm` is an exact npm pin (currently `0.3.3`), so the app uses
 > the published package (including its ~322 MB `agentvm-alpine-python.wasm`
 > image).
 
@@ -264,9 +264,9 @@ Release binaries are built by GitHub Actions on every published release — see
 - The terminal is tmux on the VM's serial console; tmux provides PTYs and
   `SIGWINCH` propagation for its panes.
 - The AgentVM host mount is served over 9p/WASI, which has no `chmod` in WASI
-  preview1: mode changes (`fs.chmod`/`fs.fchmod`) return `EPROTO` and creation
-  mode bits are dropped. pi's auth save path is unaffected, but downloaded
-  helper binaries (fd/ripgrep) and extension temp folders rely on chmod.
+  preview1 and drops creation mode bits. Since agentvm 0.3.3 the image accepts
+  (no-ops) mode changes, so `chmod` no longer fails with `EPROTO`; the mode bits
+  themselves are still not applied.
 - pi runs with `PI_OFFLINE=1`, so it skips its startup network downloads; fd
   and ripgrep are therefore not downloaded by default (pi shows an offline
   warning) until offline mode is disabled.

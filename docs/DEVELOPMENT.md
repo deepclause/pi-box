@@ -15,7 +15,7 @@ structure, how it works, known quirks, tests, and the release process.
   - `pi-box-app/` → pushed to `deepclause/pi-box`
   - `agentvm/` → a **separate** checkout of `deepclause/agentvm`
 - The app does **not** vendor agentvm. It depends on the published npm package
-  `deepclause-agentvm` (**exact pin, currently `0.3.2`**). agentvm changes must
+  `deepclause-agentvm` (**exact pin, currently `0.3.3`**). agentvm changes must
   be published to npm before the app can consume them.
 
 ---
@@ -223,8 +223,11 @@ RpcSessionManager ── net.Socket ──► host port ──forward──► g
    `pi` is a V8 process under emulated RISC-V. `PI_OFFLINE=1` skips its startup
    network ops (not later provider calls). The chat shows a "Starting pi…" card.
 2. **~350 MB wasm read every boot.** The image is read into memory on start.
-3. **No `chmod` on the mount.** The host mount is 9p/WASI; `fs.chmod` returns
-   `EPROTO` and creation mode bits are dropped (pi's auth save is unaffected).
+3. **`chmod` on the mount is accepted but not applied.** WASI preview1 has no
+   chmod and drops creation mode bits. Since agentvm 0.3.3 the image patches
+   TinyEMU's 9p `fs_setattr` to accept mode changes, so `chmod` no longer fails
+   with `EPROTO` (npm/git/install work); the bits themselves are not applied
+   (the guest is root, so this does not gate exec/permission).
 4. **`asar: false` is deliberate** — agentvm loads its wasm/worker with real file
    APIs inside a worker thread.
 5. **macOS x64 is built on the arm64 runner** (`macos-14` with `--mac --x64`).
