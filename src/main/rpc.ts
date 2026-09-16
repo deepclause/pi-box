@@ -44,7 +44,7 @@ function extractText(content: unknown): string {
 }
 
 /** Summarize a session JSONL for the session list. */
-function summarizeSession(hostFile: string, basename: string): RpcSessionSummary {
+export function summarizeSession(hostFile: string, basename: string): RpcSessionSummary {
   let updatedAt = 0
   try {
     updatedAt = fs.statSync(hostFile).mtimeMs
@@ -84,7 +84,28 @@ function summarizeSession(hostFile: string, basename: string): RpcSessionSummary
   return summary
 }
 
-function normalizeStats(data: unknown): RpcSessionStats {
+/**
+ * Split a UTF-8 string stream into JSONL records. Framing is LF-only per the
+ * RPC spec: split on `\n`, strip one trailing `\r`, and never use readline
+ * (which also splits on U+2028/U+2029). Returns complete lines plus the
+ * unterminated remainder.
+ */
+export function drainJsonl(buffer: string, chunk: string): { lines: string[]; rest: string } {
+  const combined = buffer + chunk
+  const lines: string[] = []
+  let start = 0
+  for (;;) {
+    const newline = combined.indexOf('\n', start)
+    if (newline < 0) break
+    let line = combined.slice(start, newline)
+    start = newline + 1
+    if (line.endsWith('\r')) line = line.slice(0, -1)
+    if (line) lines.push(line)
+  }
+  return { lines, rest: combined.slice(start) }
+}
+
+export function normalizeStats(data: unknown): RpcSessionStats {
   const record = (data ?? {}) as Record<string, unknown>
   const tokens = record.tokens as Record<string, number> | undefined
   const context = record.contextUsage as Record<string, unknown> | null | undefined
@@ -154,6 +175,7 @@ async function waitForFile(file: string, timeoutMs: number): Promise<void> {
 class RpcConnection extends EventEmitter {
   private socket: net.Socket | null = null
   private buffer = ''
+  private decoder = new TextDecoder('utf-8')
   private requestSeq = 0
   private pending = new Map<string, PendingRequest>()
   private closed = false
@@ -223,15 +245,9 @@ class RpcConnection extends EventEmitter {
   }
 
   private handleData(chunk: Buffer): void {
-    this.buffer += chunk.toString('utf8')
-    for (;;) {
-      const newline = this.buffer.indexOf('\n')
-      if (newline < 0) break
-      let line = this.buffer.slice(0, newline)
-      this.buffer = this.buffer.slice(newline + 1)
-      if (line.endsWith('\r')) line = line.slice(0, -1)
-      if (!line) continue
-
+    const { lines, rest } = drainJsonl(this.buffer, this.decoder.decode(chunk, { stream: true }))
+    this.buffer = rest
+    for (const line of lines) {
       let message: unknown
       try {
         message = JSON.parse(line)
