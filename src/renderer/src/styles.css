@@ -2882,3 +2882,23 @@ body {
   pointer-events: none;
   opacity: 0.55;
 }
+
+/* ---------- Persistent view container ---------- */
+
+.view-container {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
+.view-slot {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
+.view-slot[data-hidden='true'] {
+  display: none;
+}

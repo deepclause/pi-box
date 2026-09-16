@@ -177,11 +177,16 @@ export default function App() {
             onToggleNetwork={toggleNetwork}
             onOpenNetworkSettings={() => setNetworkOpen(true)}
           />
-          {view === 'chat' ? (
-            <ChatView state={state} sessionsVisible={sessionsVisible} />
-          ) : (
-            <TerminalView state={state} theme={theme} />
-          )}
+          {/* Both views stay mounted so the terminal keeps receiving console
+              output (and its scrollback) while the chat is on screen. */}
+          <div className="view-container">
+            <div className="view-slot" data-hidden={view !== 'chat'}>
+              <ChatView state={state} sessionsVisible={sessionsVisible} />
+            </div>
+            <div className="view-slot" data-hidden={view !== 'terminal'}>
+              <TerminalView state={state} theme={theme} visible={view === 'terminal'} />
+            </div>
+          </div>
         </section>
       </div>
 

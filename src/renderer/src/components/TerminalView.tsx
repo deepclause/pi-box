@@ -7,6 +7,8 @@ import type { AppState } from '@shared/types'
 interface Props {
   state: AppState | null
   theme: 'light' | 'dark'
+  /** Whether the terminal pane is the visible view. */
+  visible: boolean
 }
 
 const TERMINAL_THEMES = {
@@ -42,7 +44,7 @@ const TERMINAL_THEMES = {
   }
 } as const
 
-export default function TerminalView({ state, theme }: Props) {
+export default function TerminalView({ state, theme, visible }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -216,17 +218,38 @@ export default function TerminalView({ state, theme }: Props) {
     if (termRef.current) termRef.current.options.theme = TERMINAL_THEMES[theme]
   }, [theme])
 
+  // When the terminal becomes visible, re-fit and repaint from the buffer so the
+  // prompt/tmux status show immediately without needing a keypress.
   useEffect(() => {
-    if (state?.status === 'ready' && termRef.current && fitRef.current) {
+    if (!visible) return
+    const frame = requestAnimationFrame(() => {
+      const term = termRef.current
+      const fit = fitRef.current
+      if (!term || !fit) return
+      try {
+        fit.fit()
+        term.refresh(0, term.rows - 1)
+      } catch {
+        // ignore
+      }
+      term.focus()
+      window.pibox.termResize(term.cols, term.rows)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [visible])
+
+  useEffect(() => {
+    if (visible && state?.status === 'ready' && termRef.current && fitRef.current) {
       try {
         fitRef.current.fit()
+        termRef.current.refresh(0, termRef.current.rows - 1)
       } catch {
         // ignore
       }
       termRef.current.focus()
       window.pibox.termResize(termRef.current.cols, termRef.current.rows)
     }
-  }, [state?.status])
+  }, [state?.status, visible])
 
   return (
     <section className="terminal-pane">
