@@ -49,3 +49,15 @@ export interface OpenResult {
   ok: boolean
   error?: string
 }
+
+/** Result of copying an attached file into the active workspace. */
+export interface AttachFileResult {
+  ok: boolean
+  /** Original file name. */
+  name?: string
+  /** Size in bytes. */
+  size?: number
+  /** Guest path of the copy (inside the VM), e.g. `/workspace/.pi-box/attachments/…`. */
+  path?: string
+  error?: string
+}

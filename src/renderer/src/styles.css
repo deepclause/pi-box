@@ -3339,3 +3339,39 @@ body {
   padding: 10px 18px;
   border-top: 1px solid var(--border-soft);
 }
+
+/* Non-image attachment chips (files copied into the workspace) */
+.chat-attachment.file {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  max-width: 260px;
+}
+
+.chat-attachment.file .chat-attachment-name {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+}
+
+.chat-attachment.file .chat-attachment-size {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.chat-attachment.file[data-error='true'] {
+  border-color: color-mix(in srgb, var(--red) 40%, transparent);
+}
+
+.chat-attachment.file[data-error='true'] .chat-attachment-size {
+  color: var(--red);
+}

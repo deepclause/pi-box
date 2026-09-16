@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, shell } from 'electron'
-import type { AppState, FileNode, FirewallRule, OpenResult } from '../shared/types'
+import type { AppState, AttachFileResult, FileNode, FirewallRule, OpenResult } from '../shared/types'
 import type {
   AuthEventMessage,
   AuthLoginResult,
@@ -80,6 +80,7 @@ export interface PiBoxApi {
   setActiveWorkspace(id: string): Promise<AppState>
   openFolder(id: string): Promise<OpenResult>
   readTree(id: string, dirPath?: string): Promise<FileNode[]>
+  attachFile(name: string, bytes: Uint8Array): Promise<AttachFileResult>
   termInput(data: string): void
   termResize(cols: number, rows: number): void
   clipboardReadText(): Promise<string>
@@ -108,6 +109,7 @@ const api: PiBoxApi = {
   setActiveWorkspace: (id) => ipcRenderer.invoke('pibox:setActiveWorkspace', id),
   openFolder: (id) => ipcRenderer.invoke('pibox:openFolder', id),
   readTree: (id, dirPath) => ipcRenderer.invoke('pibox:readTree', id, dirPath),
+  attachFile: (name, bytes) => ipcRenderer.invoke('pibox:attachFile', name, bytes),
   termInput: (data) => ipcRenderer.send('pibox:termInput', data),
   termResize: (cols, rows) => ipcRenderer.send('pibox:termResize', cols, rows),
   clipboardReadText: () => ipcRenderer.invoke('pibox:clipboardReadText'),

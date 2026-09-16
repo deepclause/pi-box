@@ -17,6 +17,7 @@ import {
   makeUserMessage,
   messagesFromEntries,
   reduceEvent,
+  withAttachments,
   type ChatMessage,
   type ChatState
 } from '../lib/chat'
@@ -25,15 +26,54 @@ import ToolCard from './ToolCard'
 import SessionsPanel from './SessionsPanel'
 import ExtensionUi from './ExtensionUi'
 import BranchTree from './BranchTree'
-import { MoreIcon, PaperclipIcon, SendIcon, StopIcon } from './icons'
+import { FileIcon, MoreIcon, PaperclipIcon, SendIcon, StopIcon } from './icons'
 import { BUILTIN_COMMANDS } from '../lib/builtinCommands'
+import { isInlineImage } from '../lib/attach'
 
-interface Attachment {
+interface ImageAttachment {
   id: number
+  kind: 'image'
   name: string
   mimeType: string
   data: string
 }
+
+interface FileAttachment {
+  id: number
+  kind: 'file'
+  name: string
+  size: number
+  /** Guest path of the workspace copy; empty when attaching failed. */
+  path: string
+  error?: string
+}
+
+type Attachment = ImageAttachment | FileAttachment
+
+/** File types offered in the attach picker (images are handled inline). */
+const ATTACH_ACCEPT = [
+  'image/*',
+  '.pdf',
+  '.txt',
+  '.md',
+  '.markdown',
+  '.csv',
+  '.tsv',
+  '.json',
+  '.jsonl',
+  '.log',
+  '.yaml',
+  '.yml',
+  '.xml',
+  '.html',
+  '.docx',
+  '.xlsx',
+  '.xls',
+  '.pptx',
+  '.odt',
+  '.ods',
+  '.rtf'
+].join(',')
 
 const EMPTY_STATE: ChatState = { messages: [], activeAssistantId: null }
 
@@ -55,6 +95,14 @@ interface Toast {
   id: number
   message: string
   kind: string
+}
+
+function formatBytes(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  const exponent = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1)
+  const size = value / 1024 ** exponent
+  return `${size >= 10 || exponent === 0 ? Math.round(size) : size.toFixed(1)} ${units[exponent]}`
 }
 
 function formatTokens(value: number | null | undefined): string {
@@ -204,20 +252,58 @@ export default function ChatView({
   const attachSeq = useRef(0)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const addImageFiles = useCallback((files: FileList | File[]) => {
+  // Images are sent inline (pi supports image content); every other file is
+  // copied into the workspace and referenced by path so pi can read it with its
+  // own tools (read / bash / python) inside the VM.
+  const addFiles = useCallback((files: FileList | File[]) => {
     for (const file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) continue
-      const reader = new FileReader()
-      reader.onload = () => {
-        const result = String(reader.result ?? '')
-        const comma = result.indexOf(',')
-        const data = comma >= 0 ? result.slice(comma + 1) : result
+      if (isInlineImage(file)) {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = String(reader.result ?? '')
+          const comma = result.indexOf(',')
+          const data = comma >= 0 ? result.slice(comma + 1) : result
+          setAttachments((prev) => [
+            ...prev,
+            {
+              id: ++attachSeq.current,
+              kind: 'image',
+              name: file.name || 'image',
+              mimeType: file.type || 'image/png',
+              data
+            }
+          ])
+        }
+        reader.readAsDataURL(file)
+        continue
+      }
+
+      void file.arrayBuffer().then(async (buffer) => {
+        const bytes = new Uint8Array(buffer)
+        const result = await window.pibox.attachFile(file.name, bytes).catch((err) => ({
+          ok: false as const,
+          error: err instanceof Error ? err.message : String(err)
+        }))
         setAttachments((prev) => [
           ...prev,
-          { id: ++attachSeq.current, name: file.name || 'image', mimeType: file.type || 'image/png', data }
+          result.ok
+            ? {
+                id: ++attachSeq.current,
+                kind: 'file',
+                name: result.name ?? file.name,
+                size: result.size ?? bytes.byteLength,
+                path: result.path ?? ''
+              }
+            : {
+                id: ++attachSeq.current,
+                kind: 'file',
+                name: file.name,
+                size: bytes.byteLength,
+                path: '',
+                error: result.error ?? 'Could not attach file'
+              }
         ])
-      }
-      reader.readAsDataURL(file)
+      })
     }
   }, [])
 
@@ -429,7 +515,14 @@ export default function ChatView({
       pushToast(`Starting pi in the terminal — run ${text}`)
       return
     }
-    const images: RpcImage[] = attachments.map((item) => ({ type: 'image', data: item.data, mimeType: item.mimeType }))
+    const images: RpcImage[] = attachments
+      .filter((item): item is ImageAttachment => item.kind === 'image')
+      .map((item) => ({ type: 'image', data: item.data, mimeType: item.mimeType }))
+    const files = attachments.filter(
+      (item): item is FileAttachment => item.kind === 'file' && !item.error
+    )
+    // Reference copied files by path; the agent reads them from the workspace.
+    const message = withAttachments(text, files)
     // Slash commands are handled by pi (extension / prompt / skill), not sent as
     // conversation messages: don't add an optimistic user bubble or wait for a
     // token. pi emits its own events for these (a notify, or an assistant
@@ -442,11 +535,11 @@ export default function ChatView({
       pushToast(`Running ${text}`)
     } else {
       if (!rpcState.isStreaming) setAwaiting(true)
-      setChat((prev) => ({ ...prev, messages: [...prev.messages, makeUserMessage(text, images)] }))
+      setChat((prev) => ({ ...prev, messages: [...prev.messages, makeUserMessage(message, images)] }))
     }
     try {
       const behavior = rpcState.isStreaming ? 'steer' : undefined
-      const next = await window.pibox.rpc.prompt(text, behavior, images)
+      const next = await window.pibox.rpc.prompt(message, behavior, images)
       setRpcState(next)
     } catch (err) {
       setAwaiting(false)
@@ -905,8 +998,23 @@ export default function ChatView({
             {attachments.length ? (
               <div className="chat-attachments">
                 {attachments.map((item) => (
-                  <div className="chat-attachment" key={item.id}>
-                    <img src={`data:${item.mimeType};base64,${item.data}`} alt={item.name} />
+                  <div
+                    className={`chat-attachment${item.kind === 'image' ? '' : ' file'}`}
+                    key={item.id}
+                    data-error={item.kind === 'file' && item.error ? 'true' : undefined}
+                    title={item.kind === 'file' ? item.error ?? item.path : item.name}
+                  >
+                    {item.kind === 'image' ? (
+                      <img src={`data:${item.mimeType};base64,${item.data}`} alt={item.name} />
+                    ) : (
+                      <>
+                        <FileIcon size={14} />
+                        <span className="chat-attachment-name">{item.name}</span>
+                        <span className="chat-attachment-size">
+                          {item.error ? 'failed' : formatBytes(item.size)}
+                        </span>
+                      </>
+                    )}
                     <button
                       className="chat-attachment-remove"
                       title="Remove"
@@ -955,17 +1063,17 @@ export default function ChatView({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept={ATTACH_ACCEPT}
                 multiple
                 style={{ display: 'none' }}
                 onChange={(event) => {
-                  if (event.target.files) addImageFiles(event.target.files)
+                  if (event.target.files) addFiles(event.target.files)
                   event.target.value = ''
                 }}
               />
               <button
                 className="chat-attach"
-                title="Attach image"
+                title="Attach files"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={rpcState.status !== 'ready'}
               >
@@ -982,15 +1090,15 @@ export default function ChatView({
                 onKeyDown={onKeyDown}
                 onPaste={(event) => {
                   const files = Array.from(event.clipboardData.files)
-                  if (files.some((file) => file.type.startsWith('image/'))) {
+                  if (files.length) {
                     event.preventDefault()
-                    addImageFiles(files)
+                    addFiles(files)
                   }
                 }}
                 onDrop={(event) => {
                   if (event.dataTransfer.files.length) {
                     event.preventDefault()
-                    addImageFiles(event.dataTransfer.files)
+                    addFiles(event.dataTransfer.files)
                   }
                 }}
                 onDragOver={(event) => {

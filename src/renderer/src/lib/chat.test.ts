@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { blocksFromContent, makeUserMessage, messagesFromEntries, reduceEvent, type ChatState } from './chat'
+import {
+  blocksFromContent,
+  makeUserMessage,
+  messagesFromEntries,
+  reduceEvent,
+  withAttachments,
+  type ChatState
+} from './chat'
 
 const empty = (): ChatState => ({ messages: [], activeAssistantId: null })
 
@@ -116,5 +123,23 @@ describe('reduceEvent', () => {
     })
     expect(state.messages).toHaveLength(1)
     expect(state.messages[0].pending).toBe(false)
+  })
+})
+
+describe('withAttachments', () => {
+  it('returns the text unchanged when there are no files', () => {
+    expect(withAttachments('hello', [])).toBe('hello')
+  })
+
+  it('prepends attachment references with name, path and size', () => {
+    const out = withAttachments('summarise this', [
+      { name: 'report.pdf', path: '/workspace/.pi-box/attachments/1-report.pdf', size: 1024 },
+      { name: 'book.xlsx', path: '/workspace/.pi-box/attachments/2-book.xlsx', size: 2048 }
+    ])
+    expect(out).toBe(
+      '<attachment name="report.pdf" path="/workspace/.pi-box/attachments/1-report.pdf" bytes="1024" />\n' +
+        '<attachment name="book.xlsx" path="/workspace/.pi-box/attachments/2-book.xlsx" bytes="2048" />\n' +
+        '\nsummarise this'
+    )
   })
 })

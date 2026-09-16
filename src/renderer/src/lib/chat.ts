@@ -203,6 +203,26 @@ export function messagesFromEntries(data: unknown): ChatMessage[] {
   return state.messages
 }
 
+export interface AttachmentRef {
+  name: string
+  /** Guest path of the workspace copy. */
+  path: string
+  size: number
+}
+
+/**
+ * Prepend `<attachment>` references for files copied into the workspace. pi's
+ * own `@file` handling inlines text; binary documents (pdf/docx/xlsx) are left
+ * for the agent to read from the workspace with its tools.
+ */
+export function withAttachments(text: string, files: AttachmentRef[]): string {
+  if (files.length === 0) return text
+  const refs = files
+    .map((file) => `<attachment name="${file.name}" path="${file.path}" bytes="${file.size}" />`)
+    .join('\n')
+  return `${refs}\n\n${text}`
+}
+
 /** Optimistic user message shown immediately on send. */
 export function makeUserMessage(text: string, images: RpcImage[] = []): ChatMessage {
   const blocks: ChatBlock[] = []

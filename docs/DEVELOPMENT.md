@@ -224,6 +224,22 @@ listed nor executable. pi-box instead runs pi's own auth engine on the **host**:
 - The host `@earendil-works/pi-ai` version must match the VM's pi version (both
   `0.85.1`); it is pinned exactly in `package.json`.
 
+### 4.9 Chat attachments
+
+pi's RPC `prompt` only accepts inline images (`ImageContent`). pi-box therefore:
+
+- sends **raster images** (png/jpeg/gif/webp — see `lib/attach.ts`) inline; and
+- copies **every other file** into `<workspace>/.pi-box/attachments/` via the
+  `pibox:attachFile` IPC (`src/main/attachments.ts`), then prepends
+  `<attachment name="…" path="/workspace/.pi-box/attachments/…" bytes="…" />`
+  references (`withAttachments` in `lib/chat.ts`).
+
+pi (the agent, inside the VM) then reads the copies with its own tools — `read`,
+`bash`, `python3`/`unzip` for pdf/docx/xlsx — which keeps pi-box free of
+host-side parsers and works for any format the agent can handle. SVG/BMP are
+copied, not inlined: providers reject image types other than png/jpeg/gif/webp,
+which fails the whole request.
+
 ---
 
 ## 5. Tests & CI
@@ -235,6 +251,9 @@ listed nor executable. pi-box instead runs pi's own auth engine on the **host**:
     `summarizeSession`.
   - `src/main/credential-store.test.ts` — auth.json read/modify/delete,
     `0600` mode, mirroring, and seeding from the shared file.
+  - `src/main/attachments.test.ts` — attachment name sanitising and copying
+    into the workspace.
+  - `src/renderer/src/lib/attach.test.ts` — which file types are sent inline.
 - `.github/workflows/ci.yml` runs `npm ci` → `npm run typecheck` → `npm test` →
   `npm run build` on pushes to `main` and on every pull request.
 - Integration is still verified manually: `scripts/spike-rpc.cjs` for the

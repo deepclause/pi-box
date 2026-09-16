@@ -1,6 +1,7 @@
 import { clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
 import path from 'node:path'
-import type { AppState, FirewallRule, OpenResult } from '../shared/types'
+import type { AppState, AttachFileResult, FirewallRule, OpenResult } from '../shared/types'
+import { MAX_ATTACHMENT_BYTES, saveAttachment } from './attachments'
 import type { AuthMethod, AuthPromptResponse } from '../shared/auth-types'
 import type { RpcExtensionUIResponse, RpcImage, RpcStreamingBehavior } from '../shared/rpc-types'
 import type { AuthService } from './auth'
@@ -51,6 +52,31 @@ export function registerIpc(ctx: IpcContext): void {
     await vm.openFileInVi(`${MOUNT_POINT}/${guestRel}`)
     return { ok: true }
   })
+
+  ipcMain.handle(
+    'pibox:attachFile',
+    (_event, name: string, bytes: Uint8Array): AttachFileResult => {
+      const active = store.getActive()
+      if (!active) return { ok: false, error: 'No active workspace' }
+
+      const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+      if (buffer.byteLength > MAX_ATTACHMENT_BYTES) {
+        return { ok: false, error: `File is larger than ${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)} MB` }
+      }
+
+      try {
+        const saved = saveAttachment(active.path, name, buffer)
+        return {
+          ok: true,
+          name,
+          size: saved.size,
+          path: `${MOUNT_POINT}/${saved.relative}`
+        }
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }
+  )
 
   ipcMain.handle('pibox:clipboardWriteText', (_event, text: string) => {
     return clipboard.writeText(text)
