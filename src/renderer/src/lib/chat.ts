@@ -9,6 +9,7 @@ export type ChatBlock =
       id: string
       name: string
       argsText: string
+      args?: Record<string, unknown>
       result?: string
       images?: Array<{ data: string; mimeType: string }>
       isError?: boolean
@@ -56,7 +57,8 @@ export function blocksFromContent(content: unknown): ChatBlock[] {
         type: 'toolCall',
         id: String(block.id ?? ''),
         name: String(block.name ?? 'tool'),
-        argsText: block.arguments ? JSON.stringify(block.arguments, null, 2) : ''
+        argsText: block.arguments ? JSON.stringify(block.arguments) : '',
+        args: (block.arguments as Record<string, unknown> | undefined) ?? undefined
       })
     }
   }
@@ -108,10 +110,6 @@ function updateToolCall(
     }
   }
   return state
-}
-
-function setToolRunning(state: ChatState, toolCallId: string, running: boolean): ChatState {
-  return updateToolCall(state, toolCallId, (block) => ({ ...block, running }))
 }
 
 function attachToolResult(
@@ -260,7 +258,8 @@ function applyDelta(state: ChatState, delta: Record<string, unknown>): ChatState
           ...block,
           id: String(toolCall.id ?? block.id),
           name: String(toolCall.name ?? block.name),
-          argsText: toolCall.arguments ? JSON.stringify(toolCall.arguments, null, 2) : block.argsText
+          argsText: toolCall.arguments ? JSON.stringify(toolCall.arguments) : block.argsText,
+          args: (toolCall.arguments as Record<string, unknown> | undefined) ?? block.args
         }
       }
     }
@@ -336,8 +335,14 @@ export function reduceEvent(state: ChatState, event: RpcEvent): ChatState {
       }))
       return role === 'assistant' ? { ...next, activeAssistantId: null } : next
     }
-    case 'tool_execution_start':
-      return setToolRunning(state, String(event.toolCallId ?? ''), true)
+    case 'tool_execution_start': {
+      const args = asRecord(event.args)
+      return updateToolCall(state, String(event.toolCallId ?? ''), (block) => ({
+        ...block,
+        running: true,
+        args: args ?? block.args
+      }))
+    }
     case 'tool_execution_update': {
       const toolCallId = String(event.toolCallId ?? '')
       const partial = asRecord(event.partialResult)
@@ -349,7 +354,9 @@ export function reduceEvent(state: ChatState, event: RpcEvent): ChatState {
       const toolCallId = String(event.toolCallId ?? '')
       const result = asRecord(event.result)
       const text = result ? contentToText(result.content) : ''
-      return attachToolResult(state, toolCallId, text, Boolean(event.isError), result ? contentImages(result.content) : [], false)
+      const args = asRecord(event.args)
+      const next = attachToolResult(state, toolCallId, text, Boolean(event.isError), result ? contentImages(result.content) : [], false)
+      return args ? updateToolCall(next, toolCallId, (block) => ({ ...block, args })) : next
     }
     case 'agent_settled': {
       if (!state.activeAssistantId) return state

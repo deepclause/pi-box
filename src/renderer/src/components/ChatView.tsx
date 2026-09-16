@@ -17,11 +17,11 @@ import {
   makeUserMessage,
   messagesFromEntries,
   reduceEvent,
-  type ChatBlock,
   type ChatMessage,
   type ChatState
 } from '../lib/chat'
 import Markdown from './Markdown'
+import ToolCard from './ToolCard'
 import SessionsPanel from './SessionsPanel'
 import ExtensionUi from './ExtensionUi'
 import BranchTree from './BranchTree'
@@ -118,35 +118,6 @@ function ThinkingBlock({ text, streaming }: { text: string; streaming?: boolean 
   )
 }
 
-function ToolCard({ block }: { block: Extract<ChatBlock, { type: 'toolCall' }> }) {
-  return (
-    <div className="tool-card" data-error={block.isError ? 'true' : 'false'}>
-      <div className="tool-card-head">
-        <span className="tool-card-name">{block.name}</span>
-        {block.running ? (
-          <span className="tool-card-status running">
-            <span className="tool-spinner" />
-            running
-          </span>
-        ) : block.isError ? (
-          <span className="tool-card-status error">error</span>
-        ) : block.result !== undefined || block.images?.length ? (
-          <span className="tool-card-status done">done</span>
-        ) : null}
-      </div>
-      {block.argsText ? <pre className="tool-card-args">{block.argsText}</pre> : null}
-      {block.images?.length ? (
-        <div className="tool-card-images">
-          {block.images.map((image, index) => (
-            <img key={index} src={`data:${image.mimeType};base64,${image.data}`} alt="tool result" />
-          ))}
-        </div>
-      ) : null}
-      {block.result ? <pre className="tool-card-result">{block.result}</pre> : null}
-    </div>
-  )
-}
-
 function Message({ message }: { message: ChatMessage }) {
   return (
     <div className="chat-msg" data-role={message.role} data-pending={message.pending ? 'true' : 'false'}>
@@ -205,6 +176,7 @@ export default function ChatView({ state }: { state: AppState | null }) {
   const [elapsed, setElapsed] = useState(0)
   const [commandIndex, setCommandIndex] = useState(0)
   const transcriptRef = useRef<HTMLDivElement | null>(null)
+  const lastSessionFileRef = useRef<string | null>(null)
   const streamStartRef = useRef<number | null>(null)
   const openingRef = useRef(false)
   const retryRef = useRef(0)
@@ -367,6 +339,15 @@ export default function ChatView({ state }: { state: AppState | null }) {
       setCommands(commandList)
     })
   }, [rpcState.status])
+
+  // Reload the transcript whenever the live session changes (switch/new/fork/
+  // clone, whether triggered from the UI or the API).
+  useEffect(() => {
+    const file = rpcState.sessionFile ?? null
+    if (rpcState.status !== 'ready' || !file || file === lastSessionFileRef.current) return
+    lastSessionFileRef.current = file
+    void reloadTranscript()
+  }, [rpcState.status, rpcState.sessionFile, reloadTranscript])
 
   useEffect(() => {
     const element = transcriptRef.current
