@@ -26,6 +26,7 @@ import SessionsPanel from './SessionsPanel'
 import ExtensionUi from './ExtensionUi'
 import BranchTree from './BranchTree'
 import { MoreIcon, PaperclipIcon, SendIcon, StopIcon } from './icons'
+import { BUILTIN_COMMANDS } from '../lib/builtinCommands'
 
 interface Attachment {
   id: number
@@ -155,7 +156,15 @@ function UsageBar({ stats }: { stats: RpcSessionStats | undefined }) {
   )
 }
 
-export default function ChatView({ state, sessionsVisible }: { state: AppState | null; sessionsVisible: boolean }) {
+export default function ChatView({
+  state,
+  sessionsVisible,
+  onOpenTerminal
+}: {
+  state: AppState | null
+  sessionsVisible: boolean
+  onOpenTerminal: () => void
+}) {
   const [rpcState, setRpcState] = useState<RpcState>(INITIAL_RPC_STATE)
   const [chat, setChat] = useState<ChatState>(EMPTY_STATE)
   const [input, setInput] = useState('')
@@ -401,6 +410,23 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
   const send = useCallback(async () => {
     const text = input.trim()
     if ((!text && attachments.length === 0) || rpcState.status !== 'ready') return
+    // pi's built-in slash commands (login/logout/compact/…) live only in its
+    // interactive TUI, so they cannot run over RPC. Run them in the terminal,
+    // which hosts the pi TUI, instead of sending them as a chat message.
+    const builtin = text.startsWith('/')
+      ? BUILTIN_COMMANDS.find((c) => text === `/${c.name}` || text.startsWith(`/${c.name} `))
+      : undefined
+    if (builtin) {
+      setInput('')
+      setAttachments([])
+      setCommandIndex(0)
+      onOpenTerminal()
+      // pi-box exports PI_OFFLINE=1 to skip startup network work; login/OAuth
+      // needs the network, so clear it for this interactive pi.
+      if (state?.status === 'ready') window.pibox.termInput('unset PI_OFFLINE; pi\r')
+      pushToast(`Starting pi in the terminal — run ${text}`)
+      return
+    }
     const images: RpcImage[] = attachments.map((item) => ({ type: 'image', data: item.data, mimeType: item.mimeType }))
     // Slash commands are handled by pi (extension / prompt / skill), not sent as
     // conversation messages: don't add an optimistic user bubble or wait for a
@@ -424,7 +450,7 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
       setAwaiting(false)
       setError(err instanceof Error ? err.message : String(err))
     }
-  }, [input, attachments, rpcState.status, rpcState.isStreaming, pushToast])
+  }, [input, attachments, rpcState.status, rpcState.isStreaming, pushToast, onOpenTerminal, state?.status])
 
   const stop = useCallback(() => {
     window.pibox.rpc
@@ -620,7 +646,10 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
   const commandMatches = useMemo(() => {
     if (!input.startsWith('/') || input.includes(' ')) return []
     const query = input.toLowerCase()
-    return commands.filter((command) => `/${command.name.toLowerCase()}`.startsWith(query)).slice(0, 8)
+    // Extension/prompt/skill commands come from pi; TUI-only built-ins are
+    // added locally (and never shadow a pi-provided command).
+    const all = [...commands, ...BUILTIN_COMMANDS.filter((b) => !commands.some((c) => c.name === b.name))]
+    return all.filter((command) => `/${command.name.toLowerCase()}`.startsWith(query)).slice(0, 8)
   }, [input, commands])
 
   const acceptCommand = useCallback((command: RpcCommand) => {

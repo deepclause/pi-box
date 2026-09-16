@@ -103,6 +103,8 @@ export default function App() {
     setView(next)
   }, [])
 
+  const openTerminal = useCallback(() => setActiveView('terminal'), [setActiveView])
+
   // Open a file in vi inside a new tmux window, then reveal the terminal so the
   // user actually sees it.
   const editFile = useCallback(
@@ -183,7 +185,7 @@ export default function App() {
               output (and its scrollback) while the chat is on screen. */}
           <div className="view-container">
             <div className="view-slot" data-hidden={view !== 'chat'}>
-              <ChatView state={state} sessionsVisible={sessionsVisible} />
+              <ChatView state={state} sessionsVisible={sessionsVisible} onOpenTerminal={openTerminal} />
             </div>
             <div className="view-slot" data-hidden={view !== 'terminal'}>
               <TerminalView state={state} theme={theme} visible={view === 'terminal'} />

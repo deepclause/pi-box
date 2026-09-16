@@ -69,7 +69,7 @@ export interface RpcModelOption extends RpcModelInfo {}
 export interface RpcCommand {
   name: string
   description?: string
-  source: 'extension' | 'prompt' | 'skill'
+  source: 'extension' | 'prompt' | 'skill' | 'builtin'
 }
 
 /** A session file discovered in the workspace's `.pi/sessions` directory. */
