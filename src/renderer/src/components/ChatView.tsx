@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { AppState } from '@shared/types'
-import type { RpcState } from '@shared/rpc-types'
+import type { RpcCommand, RpcEvent, RpcModelInfo, RpcSessionStats, RpcState } from '@shared/rpc-types'
 import {
   makeUserMessage,
   messagesFromEntries,
@@ -19,7 +19,53 @@ const INITIAL_RPC_STATE: RpcState = {
   sessionId: null,
   model: null,
   thinkingLevel: null,
-  isStreaming: false
+  isStreaming: false,
+  isCompacting: false
+}
+
+interface Notice {
+  id: number
+  text: string
+}
+
+function formatTokens(value: number | null | undefined): string {
+  if (value == null) return '—'
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}k`
+  return String(value)
+}
+
+function formatCost(value: number | undefined): string {
+  if (value == null) return '—'
+  if (value === 0) return '$0'
+  if (value < 0.01) return `$${value.toFixed(4)}`
+  return `$${value.toFixed(2)}`
+}
+
+/** Human-readable system notice for a transient session event, if any. */
+function noticeFromEvent(event: RpcEvent): string | null {
+  switch (event.type) {
+    case 'compaction_start':
+      return `Compacting context…`
+    case 'compaction_end': {
+      if (event.aborted) return 'Compaction aborted'
+      const result = event.result as { tokensBefore?: number; estimatedTokensAfter?: number } | null
+      if (!result) return event.errorMessage ? `Compaction failed: ${String(event.errorMessage)}` : 'Compaction finished'
+      return `Compacted context: ${formatTokens(result.tokensBefore)} → ~${formatTokens(result.estimatedTokensAfter)} tokens`
+    }
+    case 'auto_retry_start':
+      return `Provider error — retrying (attempt ${String(event.attempt)}/${String(event.maxAttempts)})…`
+    case 'auto_retry_end':
+      return event.success ? 'Retry succeeded' : `Retry failed: ${String(event.finalError ?? '')}`
+    case 'summarization_retry_scheduled':
+      return 'Summarization retry scheduled…'
+    case 'summarization_retry_attempt_start':
+      return 'Retrying summarization…'
+    case 'extension_error':
+      return `Extension error: ${String(event.error ?? '')}`
+    default:
+      return null
+  }
 }
 
 function ThinkingBlock({ text, streaming }: { text: string; streaming?: boolean }) {
@@ -61,14 +107,39 @@ function Message({ message }: { message: ChatMessage }) {
   )
 }
 
+function UsageBar({ stats }: { stats: RpcSessionStats | undefined }) {
+  const percent = stats?.contextUsage?.percent
+  const total = stats?.tokens?.total
+  return (
+    <span className="chat-usage" title="Context window usage · session tokens · session cost">
+      {typeof percent === 'number' ? (
+        <>
+          <span className="chat-ctx-bar">
+            <span style={{ width: `${Math.min(100, Math.max(0, percent))}%` }} />
+          </span>
+          {percent.toFixed(0)}% ·{' '}
+        </>
+      ) : null}
+      {formatTokens(total)} tok · {formatCost(stats?.cost)}
+    </span>
+  )
+}
+
 export default function ChatView({ state }: { state: AppState | null }) {
   const [rpcState, setRpcState] = useState<RpcState>(INITIAL_RPC_STATE)
   const [chat, setChat] = useState<ChatState>(EMPTY_STATE)
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [models, setModels] = useState<RpcModelInfo[]>([])
+  const [thinkingLevels, setThinkingLevels] = useState<string[]>([])
+  const [commands, setCommands] = useState<RpcCommand[]>([])
+  const [queue, setQueue] = useState<{ steering: string[]; followUp: string[] }>({ steering: [], followUp: [] })
+  const [notices, setNotices] = useState<Notice[]>([])
+  const [commandIndex, setCommandIndex] = useState(0)
   const transcriptRef = useRef<HTMLDivElement | null>(null)
   const openingRef = useRef(false)
   const retryRef = useRef(0)
+  const noticeSeq = useRef(0)
 
   useEffect(() => {
     let mounted = true
@@ -76,7 +147,16 @@ export default function ChatView({ state }: { state: AppState | null }) {
       if (mounted) setRpcState(next)
     })
     const unsubscribeEvent = window.pibox.rpc.onEvent((event) => {
-      if (mounted) setChat((prev) => reduceEvent(prev, event))
+      if (!mounted) return
+      setChat((prev) => reduceEvent(prev, event))
+      if (event.type === 'queue_update') {
+        setQueue({
+          steering: (event.steering as string[]) ?? [],
+          followUp: (event.followUp as string[]) ?? []
+        })
+      }
+      const notice = noticeFromEvent(event)
+      if (notice) setNotices((prev) => [...prev, { id: ++noticeSeq.current, text: notice }].slice(-30))
     })
     window.pibox.rpc
       .getState()
@@ -136,17 +216,32 @@ export default function ChatView({ state }: { state: AppState | null }) {
       return () => clearTimeout(timer)
     }
     void open()
-  }, [state?.status, rpcState.status, open])
+  }, [state?.status, state?.activeWorkspaceId, rpcState.status, open])
+
+  // Load picker/command metadata once a session is ready.
+  useEffect(() => {
+    if (rpcState.status !== 'ready') return
+    void Promise.all([
+      window.pibox.rpc.getAvailableModels().catch(() => [] as RpcModelInfo[]),
+      window.pibox.rpc.getAvailableThinkingLevels().catch(() => [] as string[]),
+      window.pibox.rpc.getCommands().catch(() => [] as RpcCommand[])
+    ]).then(([modelList, levels, commandList]) => {
+      setModels(modelList)
+      setThinkingLevels(levels)
+      setCommands(commandList)
+    })
+  }, [rpcState.status])
 
   useEffect(() => {
     const element = transcriptRef.current
     if (element) element.scrollTop = element.scrollHeight
-  }, [chat])
+  }, [chat, notices])
 
   const send = useCallback(async () => {
     const text = input.trim()
     if (!text || rpcState.status !== 'ready') return
     setInput('')
+    setCommandIndex(0)
     setChat((prev) => ({ ...prev, messages: [...prev.messages, makeUserMessage(text)] }))
     try {
       const behavior = rpcState.isStreaming ? 'steer' : undefined
@@ -164,7 +259,53 @@ export default function ChatView({ state }: { state: AppState | null }) {
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
   }, [])
 
+  const selectModel = useCallback(async (value: string) => {
+    const slash = value.indexOf('/')
+    if (slash < 0) return
+    try {
+      setRpcState(await window.pibox.rpc.setModel(value.slice(0, slash), value.slice(slash + 1)))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [])
+
+  const selectThinking = useCallback(async (level: string) => {
+    try {
+      setRpcState(await window.pibox.rpc.setThinkingLevel(level))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [])
+
+  const commandMatches = useMemo(() => {
+    if (!input.startsWith('/') || input.includes(' ')) return []
+    const query = input.toLowerCase()
+    return commands.filter((command) => `/${command.name.toLowerCase()}`.startsWith(query)).slice(0, 8)
+  }, [input, commands])
+
+  const acceptCommand = useCallback((command: RpcCommand) => {
+    setInput(`/${command.name} `)
+    setCommandIndex(0)
+  }, [])
+
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (commandMatches.length > 0) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        setCommandIndex((index) => (index + 1) % commandMatches.length)
+        return
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setCommandIndex((index) => (index - 1 + commandMatches.length) % commandMatches.length)
+        return
+      }
+      if (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey && commandMatches[commandIndex])) {
+        event.preventDefault()
+        acceptCommand(commandMatches[commandIndex])
+        return
+      }
+    }
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       void send()
@@ -173,6 +314,9 @@ export default function ChatView({ state }: { state: AppState | null }) {
 
   const busy = rpcState.status === 'starting'
   const notReady = state?.status !== 'ready'
+  const modelKey = rpcState.model ? `${rpcState.model.provider}/${rpcState.model.id}` : ''
+  const knownModel = models.some((model) => `${model.provider}/${model.id}` === modelKey)
+  const levels = thinkingLevels.length ? thinkingLevels : ['off', 'minimal', 'low', 'medium', 'high']
 
   return (
     <section className="chat-pane">
@@ -182,9 +326,7 @@ export default function ChatView({ state }: { state: AppState | null }) {
             <div className="chat-starting-card">
               <div className="chat-spinner" />
               <div className="chat-starting-title">Starting pi…</div>
-              <div className="chat-starting-sub">
-                pi runs inside the VM, so first launch takes ~30 seconds while it boots.
-              </div>
+              <div className="chat-starting-sub">pi runs inside the VM, so first launch takes ~30 seconds while it boots.</div>
             </div>
           </div>
         ) : chat.messages.length === 0 ? (
@@ -194,6 +336,13 @@ export default function ChatView({ state }: { state: AppState | null }) {
         ) : (
           chat.messages.map((message) => <Message key={message.id} message={message} />)
         )}
+        {!busy
+          ? notices.map((notice) => (
+              <div className="chat-notice" key={notice.id}>
+                {notice.text}
+              </div>
+            ))
+          : null}
       </div>
 
       {error ? (
@@ -207,16 +356,73 @@ export default function ChatView({ state }: { state: AppState | null }) {
 
       <div className="chat-composer">
         <div className="chat-composer-meta">
-          <span className="chat-model">{rpcState.model ? `${rpcState.model.id}` : 'no model'}</span>
-          {rpcState.thinkingLevel ? <span className="chat-thinking">{rpcState.thinkingLevel}</span> : null}
+          <select className="chat-select" value={modelKey} onChange={(event) => void selectModel(event.target.value)} disabled={rpcState.status !== 'ready'}>
+            {!knownModel && modelKey ? <option value={modelKey}>{rpcState.model?.id}</option> : null}
+            {models.length === 0 && !modelKey ? <option value="">no model</option> : null}
+            {models.map((model) => (
+              <option key={`${model.provider}/${model.id}`} value={`${model.provider}/${model.id}`}>
+                {model.id}
+              </option>
+            ))}
+          </select>
+          <select
+            className="chat-select"
+            value={rpcState.thinkingLevel ?? 'off'}
+            onChange={(event) => void selectThinking(event.target.value)}
+            disabled={rpcState.status !== 'ready'}
+          >
+            {levels.map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
+          </select>
+          <UsageBar stats={rpcState.stats} />
+          {rpcState.isCompacting ? <span className="chat-streaming">compacting</span> : null}
           {rpcState.isStreaming ? <span className="chat-streaming">streaming</span> : null}
         </div>
+
+        {queue.steering.length || queue.followUp.length ? (
+          <div className="chat-queue">
+            {queue.steering.map((text, index) => (
+              <span className="chat-queue-chip" data-kind="steer" key={`s${index}`} title="Queued steering message">
+                {text}
+              </span>
+            ))}
+            {queue.followUp.map((text, index) => (
+              <span className="chat-queue-chip" data-kind="follow" key={`f${index}`} title="Queued follow-up message">
+                {text}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
         <div className="chat-composer-row">
+          {commandMatches.length > 0 ? (
+            <div className="chat-commands">
+              {commandMatches.map((command, index) => (
+                <button
+                  key={command.name}
+                  className="chat-command"
+                  data-active={index === commandIndex ? 'true' : 'false'}
+                  onMouseEnter={() => setCommandIndex(index)}
+                  onClick={() => acceptCommand(command)}
+                >
+                  <span className="chat-command-name">/{command.name}</span>
+                  <span className="chat-command-source">{command.source}</span>
+                  {command.description ? <span className="chat-command-desc">{command.description}</span> : null}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <textarea
             className="chat-input"
-            placeholder={rpcState.isStreaming ? 'Steer pi…  (Enter to send)' : 'Message pi…  (Enter to send, Shift+Enter for newline)'}
+            placeholder={rpcState.isStreaming ? 'Steer pi…  (Enter to send)' : 'Message pi…  (Enter to send, Shift+Enter for newline, / for commands)'}
             value={input}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={(event) => {
+              setInput(event.target.value)
+              setCommandIndex(0)
+            }}
             onKeyDown={onKeyDown}
             rows={3}
             disabled={rpcState.status !== 'ready'}

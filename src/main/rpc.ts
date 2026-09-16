@@ -2,7 +2,14 @@ import { EventEmitter } from 'node:events'
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
-import type { RpcEvent, RpcModelInfo, RpcState, RpcStreamingBehavior } from '../shared/rpc-types'
+import type {
+  RpcCommand,
+  RpcEvent,
+  RpcModelInfo,
+  RpcSessionStats,
+  RpcState,
+  RpcStreamingBehavior
+} from '../shared/rpc-types'
 import { PI_RPC_GUEST_PORT } from '../shared/rpc-types'
 import type { VmManager } from './vm'
 import type { WorkspaceStore } from './workspaces'
@@ -13,6 +20,31 @@ const START_TIMEOUT_MS = 120_000
 
 function log(message: string, ...rest: unknown[]): void {
   console.log(`[rpc ${new Date().toISOString().slice(11, 23)}] ${message}`, ...rest)
+}
+
+function normalizeStats(data: unknown): RpcSessionStats {
+  const record = (data ?? {}) as Record<string, unknown>
+  const tokens = record.tokens as Record<string, number> | undefined
+  const context = record.contextUsage as Record<string, unknown> | null | undefined
+  return {
+    tokens: tokens
+      ? {
+          input: tokens.input ?? 0,
+          output: tokens.output ?? 0,
+          cacheRead: tokens.cacheRead ?? 0,
+          cacheWrite: tokens.cacheWrite ?? 0,
+          total: tokens.total ?? tokens.totalTokens ?? 0
+        }
+      : undefined,
+    cost: typeof record.cost === 'number' ? record.cost : undefined,
+    contextUsage: context
+      ? {
+          tokens: (context.tokens as number | null) ?? null,
+          contextWindow: (context.contextWindow as number) ?? 0,
+          percent: (context.percent as number | null) ?? null
+        }
+      : null
+  }
 }
 
 interface RpcResponse {
@@ -186,7 +218,8 @@ export class RpcSessionManager extends EventEmitter {
     sessionId: null,
     model: null,
     thinkingLevel: null,
-    isStreaming: false
+    isStreaming: false,
+    isCompacting: false
   }
 
   constructor(
@@ -274,9 +307,11 @@ export class RpcSessionManager extends EventEmitter {
         sessionFile: data.sessionFile as string | undefined,
         model: model ? { provider: model.provider ?? '', id: model.id ?? '', name: model.name } : null,
         thinkingLevel: (data.thinkingLevel as string) ?? null,
-        isStreaming: Boolean(data.isStreaming)
+        isStreaming: Boolean(data.isStreaming),
+        isCompacting: Boolean(data.isCompacting)
       })
       log(`ready (model ${this.stateValue.model?.id ?? 'none'})`)
+      await this.refreshStats().catch(() => undefined)
       return this.state
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -298,8 +333,18 @@ export class RpcSessionManager extends EventEmitter {
 
   private handleEvent(event: RpcEvent): void {
     if (event.type === 'agent_start') this.setState({ isStreaming: true })
-    else if (event.type === 'agent_settled') this.setState({ isStreaming: false })
+    else if (event.type === 'agent_settled') {
+      this.setState({ isStreaming: false })
+      void this.refreshStats().catch(() => undefined)
+    } else if (event.type === 'compaction_start') this.setState({ isCompacting: true })
+    else if (event.type === 'compaction_end') this.setState({ isCompacting: false })
     this.emit('event', event)
+  }
+
+  private async refreshStats(): Promise<void> {
+    if (!this.connection?.isOpen()) return
+    const response = await this.connection.send({ type: 'get_session_stats' })
+    if (response.success) this.setState({ stats: normalizeStats(response.data) })
   }
 
   async getEntries(): Promise<unknown> {
@@ -373,6 +418,50 @@ export class RpcSessionManager extends EventEmitter {
     const response = await this.connection!.send({ type: 'set_thinking_level', level })
     if (!response.success) throw new Error(response.error ?? 'set_thinking_level failed')
     this.setState({ thinkingLevel: level })
+  }
+
+  async getSessionStats(): Promise<RpcSessionStats> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'get_session_stats' })
+    const stats = response.success ? normalizeStats(response.data) : {}
+    this.setState({ stats })
+    return stats
+  }
+
+  async getAvailableThinkingLevels(): Promise<string[]> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'get_available_thinking_levels' })
+    const data = (response.data ?? {}) as { levels?: string[] }
+    return data.levels ?? []
+  }
+
+  async getCommands(): Promise<RpcCommand[]> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'get_commands' })
+    const data = (response.data ?? {}) as { commands?: Array<Record<string, unknown>> }
+    return (data.commands ?? []).map((command) => ({
+      name: String(command.name ?? ''),
+      description: command.description as string | undefined,
+      source: (command.source as RpcCommand['source']) ?? 'extension'
+    }))
+  }
+
+  async setSessionName(name: string): Promise<void> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'set_session_name', name })
+    if (!response.success) throw new Error(response.error ?? 'set_session_name failed')
+    this.setState({ sessionName: name })
+  }
+
+  async cycleModel(): Promise<void> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'cycle_model' })
+    const data = (response.data ?? null) as { model?: { provider?: string; id?: string; name?: string } } | null
+    if (data?.model) {
+      this.setState({
+        model: { provider: data.model.provider ?? '', id: data.model.id ?? '', name: data.model.name }
+      })
+    }
   }
 
   /** Close the live session (called before the VM restarts or the app quits). */

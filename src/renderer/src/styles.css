@@ -1348,3 +1348,143 @@ body {
   font-size: 12px;
   line-height: 1.65;
 }
+
+/* ---------- Chat controls (Phase 2) ---------- */
+
+.chat-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 2px 6px;
+  max-width: 220px;
+  outline: none;
+  cursor: pointer;
+}
+
+.chat-select:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.chat-usage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-faint);
+  margin-left: auto;
+}
+
+.chat-ctx-bar {
+  display: inline-block;
+  width: 54px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.chat-ctx-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.chat-notice {
+  max-width: 760px;
+  margin: 0 auto 10px;
+  padding: 0 26px;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  font-style: italic;
+}
+
+.chat-queue {
+  max-width: 760px;
+  margin: 0 auto 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chat-queue-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-queue-chip[data-kind='steer'] {
+  border-color: rgba(122, 162, 247, 0.4);
+  color: var(--accent);
+}
+
+.chat-queue-chip[data-kind='follow'] {
+  border-color: rgba(158, 206, 106, 0.4);
+  color: var(--green);
+}
+
+.chat-composer-row {
+  position: relative;
+}
+
+.chat-commands {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 5;
+}
+
+.chat-command {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 9px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.chat-command[data-active='true'] {
+  background: var(--surface-active);
+}
+
+.chat-command-name {
+  font-family: var(--mono);
+  color: var(--accent);
+}
+
+.chat-command-source {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+}
+
+.chat-command-desc {
+  color: var(--text-dim);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -126,6 +126,22 @@ export function registerIpc(ctx: IpcContext): void {
     return rpc.state
   })
 
+  ipcMain.handle('pibox:rpc:getSessionStats', async () => rpc.getSessionStats())
+
+  ipcMain.handle('pibox:rpc:getAvailableThinkingLevels', async () => rpc.getAvailableThinkingLevels())
+
+  ipcMain.handle('pibox:rpc:getCommands', async () => rpc.getCommands())
+
+  ipcMain.handle('pibox:rpc:setSessionName', async (_event, name: string) => {
+    await rpc.setSessionName(name)
+    return rpc.state
+  })
+
+  ipcMain.handle('pibox:rpc:cycleModel', async () => {
+    await rpc.cycleModel()
+    return rpc.state
+  })
+
   ipcMain.handle('pibox:addPortForward', async (_event, config: { hostPort: number; guestPort: number; guestHost?: string }) => {
     await vm.addPortForward(config)
     ctx.broadcast()

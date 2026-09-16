@@ -16,7 +16,27 @@ export interface RpcModelInfo {
   reasoning?: boolean
 }
 
-/** Coarse state of the single live chat session (Phase 1). */
+export interface RpcTokenUsage {
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite: number
+  total: number
+}
+
+export interface RpcContextUsage {
+  tokens: number | null
+  contextWindow: number
+  percent: number | null
+}
+
+export interface RpcSessionStats {
+  tokens?: RpcTokenUsage
+  cost?: number
+  contextUsage?: RpcContextUsage | null
+}
+
+/** Coarse state of the single live chat session. */
 export interface RpcState {
   status: RpcStatus
   statusMessage?: string
@@ -26,12 +46,16 @@ export interface RpcState {
   model: RpcModelInfo | null
   thinkingLevel: string | null
   isStreaming: boolean
+  isCompacting: boolean
+  stats?: RpcSessionStats
 }
 
 /** A raw JSON record from the pi RPC stdout stream (event or extension_ui). */
 export type RpcEvent = { type: string } & Record<string, unknown>
 
 export type RpcStreamingBehavior = 'steer' | 'followUp'
+
+export interface RpcModelOption extends RpcModelInfo {}
 
 /** Command available via the composer's `/` menu. */
 export interface RpcCommand {

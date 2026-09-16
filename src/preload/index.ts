@@ -1,6 +1,13 @@
 import { contextBridge, ipcRenderer, shell } from 'electron'
 import type { AppState, FileNode, FirewallRule, OpenResult } from '../shared/types'
-import type { RpcEvent, RpcModelInfo, RpcState, RpcStreamingBehavior } from '../shared/rpc-types'
+import type {
+  RpcCommand,
+  RpcEvent,
+  RpcModelInfo,
+  RpcSessionStats,
+  RpcState,
+  RpcStreamingBehavior
+} from '../shared/rpc-types'
 
 export interface PiBoxRpcApi {
   getState(): Promise<RpcState>
@@ -14,6 +21,11 @@ export interface PiBoxRpcApi {
   getAvailableModels(): Promise<RpcModelInfo[]>
   setModel(provider: string, modelId: string): Promise<RpcState>
   setThinkingLevel(level: string): Promise<RpcState>
+  cycleModel(): Promise<RpcState>
+  getSessionStats(): Promise<RpcSessionStats>
+  getAvailableThinkingLevels(): Promise<string[]>
+  getCommands(): Promise<RpcCommand[]>
+  setSessionName(name: string): Promise<RpcState>
   onEvent(cb: (event: RpcEvent) => void): () => void
   onState(cb: (state: RpcState) => void): () => void
 }
@@ -94,6 +106,11 @@ const api: PiBoxApi = {
     getAvailableModels: () => ipcRenderer.invoke('pibox:rpc:getAvailableModels'),
     setModel: (provider, modelId) => ipcRenderer.invoke('pibox:rpc:setModel', provider, modelId),
     setThinkingLevel: (level) => ipcRenderer.invoke('pibox:rpc:setThinkingLevel', level),
+    cycleModel: () => ipcRenderer.invoke('pibox:rpc:cycleModel'),
+    getSessionStats: () => ipcRenderer.invoke('pibox:rpc:getSessionStats'),
+    getAvailableThinkingLevels: () => ipcRenderer.invoke('pibox:rpc:getAvailableThinkingLevels'),
+    getCommands: () => ipcRenderer.invoke('pibox:rpc:getCommands'),
+    setSessionName: (name) => ipcRenderer.invoke('pibox:rpc:setSessionName', name),
 
     onEvent: (cb) => {
       const listener = (_event: Electron.IpcRendererEvent, payload: RpcEvent): void => cb(payload)
