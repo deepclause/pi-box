@@ -402,11 +402,20 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
     const text = input.trim()
     if ((!text && attachments.length === 0) || rpcState.status !== 'ready') return
     const images: RpcImage[] = attachments.map((item) => ({ type: 'image', data: item.data, mimeType: item.mimeType }))
+    // Slash commands are handled by pi (extension / prompt / skill), not sent as
+    // conversation messages: don't add an optimistic user bubble or wait for a
+    // token. pi emits its own events for these (a notify, or an assistant
+    // message).
+    const isCommand = text.startsWith('/')
     setInput('')
     setAttachments([])
     setCommandIndex(0)
-    if (!rpcState.isStreaming) setAwaiting(true)
-    setChat((prev) => ({ ...prev, messages: [...prev.messages, makeUserMessage(text, images)] }))
+    if (isCommand) {
+      pushToast(`Running ${text}`)
+    } else {
+      if (!rpcState.isStreaming) setAwaiting(true)
+      setChat((prev) => ({ ...prev, messages: [...prev.messages, makeUserMessage(text, images)] }))
+    }
     try {
       const behavior = rpcState.isStreaming ? 'steer' : undefined
       const next = await window.pibox.rpc.prompt(text, behavior, images)
@@ -415,7 +424,7 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
       setAwaiting(false)
       setError(err instanceof Error ? err.message : String(err))
     }
-  }, [input, attachments, rpcState.status, rpcState.isStreaming])
+  }, [input, attachments, rpcState.status, rpcState.isStreaming, pushToast])
 
   const stop = useCallback(() => {
     window.pibox.rpc
