@@ -90,12 +90,10 @@ function contentImages(content: unknown): Array<{ data: string; mimeType: string
   return images
 }
 
-function attachToolResult(
+function updateToolCall(
   state: ChatState,
   toolCallId: string,
-  result: string,
-  isError: boolean,
-  images: Array<{ data: string; mimeType: string }> = []
+  update: (block: Extract<ChatBlock, { type: 'toolCall' }>) => Extract<ChatBlock, { type: 'toolCall' }>
 ): ChatState {
   for (let i = state.messages.length - 1; i >= 0; i--) {
     const message = state.messages[i]
@@ -103,19 +101,34 @@ function attachToolResult(
     if (index >= 0) {
       const blocks = message.blocks.slice()
       const block = blocks[index] as Extract<ChatBlock, { type: 'toolCall' }>
-      blocks[index] = {
-        ...block,
-        result,
-        isError,
-        running: false,
-        images: images.length ? images : block.images
-      }
+      blocks[index] = update(block)
       const messages = state.messages.slice()
       messages[i] = { ...message, blocks }
       return { ...state, messages }
     }
   }
   return state
+}
+
+function setToolRunning(state: ChatState, toolCallId: string, running: boolean): ChatState {
+  return updateToolCall(state, toolCallId, (block) => ({ ...block, running }))
+}
+
+function attachToolResult(
+  state: ChatState,
+  toolCallId: string,
+  result: string,
+  isError: boolean,
+  images: Array<{ data: string; mimeType: string }> = [],
+  running = false
+): ChatState {
+  return updateToolCall(state, toolCallId, (block) => ({
+    ...block,
+    result,
+    isError,
+    running,
+    images: images.length ? images : block.images
+  }))
 }
 
 /** Build a transcript from a `get_entries` response. */
@@ -324,19 +337,19 @@ export function reduceEvent(state: ChatState, event: RpcEvent): ChatState {
       return role === 'assistant' ? { ...next, activeAssistantId: null } : next
     }
     case 'tool_execution_start':
-      // The tool call block is created by `toolcall_start`; nothing to do here.
-      return state
+      return setToolRunning(state, String(event.toolCallId ?? ''), true)
     case 'tool_execution_update': {
       const toolCallId = String(event.toolCallId ?? '')
       const partial = asRecord(event.partialResult)
       const text = partial ? contentToText(partial.content) : ''
-      return attachToolResult(state, toolCallId, text, false, partial ? contentImages(partial.content) : [])
+      // Still running: keep the indicator while output streams in.
+      return attachToolResult(state, toolCallId, text, false, partial ? contentImages(partial.content) : [], true)
     }
     case 'tool_execution_end': {
       const toolCallId = String(event.toolCallId ?? '')
       const result = asRecord(event.result)
       const text = result ? contentToText(result.content) : ''
-      return attachToolResult(state, toolCallId, text, Boolean(event.isError), result ? contentImages(result.content) : [])
+      return attachToolResult(state, toolCallId, text, Boolean(event.isError), result ? contentImages(result.content) : [], false)
     }
     case 'agent_settled': {
       if (!state.activeAssistantId) return state

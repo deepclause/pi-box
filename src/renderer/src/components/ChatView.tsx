@@ -123,8 +123,16 @@ function ToolCard({ block }: { block: Extract<ChatBlock, { type: 'toolCall' }> }
     <div className="tool-card" data-error={block.isError ? 'true' : 'false'}>
       <div className="tool-card-head">
         <span className="tool-card-name">{block.name}</span>
-        {block.running ? <span className="tool-card-status">running…</span> : null}
-        {block.isError ? <span className="tool-card-status error">error</span> : null}
+        {block.running ? (
+          <span className="tool-card-status running">
+            <span className="tool-spinner" />
+            running
+          </span>
+        ) : block.isError ? (
+          <span className="tool-card-status error">error</span>
+        ) : block.result !== undefined || block.images?.length ? (
+          <span className="tool-card-status done">done</span>
+        ) : null}
       </div>
       {block.argsText ? <pre className="tool-card-args">{block.argsText}</pre> : null}
       {block.images?.length ? (

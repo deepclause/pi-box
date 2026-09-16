@@ -1945,3 +1945,24 @@ body {
   border-radius: 6px;
   border: 1px solid var(--border);
 }
+
+.tool-card-status.running {
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tool-card-status.done {
+  color: var(--green);
+}
+
+.tool-spinner {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+  animation: chat-spin 0.8s linear infinite;
+}
