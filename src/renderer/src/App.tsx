@@ -25,9 +25,9 @@ export default function App() {
   })
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
-      return localStorage.getItem('pibox.theme') === 'dark' ? 'dark' : 'light'
+      return localStorage.getItem('pibox.theme') === 'light' ? 'light' : 'dark'
     } catch {
-      return 'light'
+      return 'dark'
     }
   })
   const [sessionsVisible, setSessionsVisible] = useState<boolean>(() => {

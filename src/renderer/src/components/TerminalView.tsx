@@ -81,7 +81,7 @@ export default function TerminalView({ state, theme }: Props) {
       lineHeight: 1.2,
       letterSpacing: 0,
       fontWeight: 400,
-      fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", Menlo, Consolas, monospace',
+      fontFamily: '"JetBrains Mono Variable", "JetBrains Mono", "Fira Code", "SF Mono", Menlo, Consolas, monospace',
       theme: TERMINAL_THEMES[theme],
       scrollback: 10000,
       convertEol: false,
