@@ -1,14 +1,18 @@
 import { app, BrowserWindow } from 'electron'
+import fs from 'node:fs'
 import path from 'node:path'
 import { VmManager } from './vm'
 import { WorkspaceStore } from './workspaces'
+import { RpcSessionManager } from './rpc'
 import { MOUNT_POINT, registerIpc } from './ipc'
 import type { AppState } from '../shared/types'
+import type { RpcEvent, RpcState } from '../shared/rpc-types'
 
 let mainWindow: BrowserWindow | null = null
 
 const vm = new VmManager()
 const store = new WorkspaceStore()
+const rpc = new RpcSessionManager(vm, store)
 
 function buildState(): AppState {
   const active = store.getActive()
@@ -37,12 +41,42 @@ function broadcastOutput(text: string): void {
   }
 }
 
+function broadcastRpcEvent(event: RpcEvent): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('pibox:rpc:event', event)
+  }
+}
+
+function broadcastRpcState(state: RpcState): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('pibox:rpc:state', state)
+  }
+}
+
+/**
+ * Remove the guest bridge's readiness marker before booting the VM. The marker
+ * lives on the workspace mount, so it survives restarts; a stale marker would
+ * let the RPC session connect before the new guest bridge is listening.
+ */
+function clearRpcReadyMarker(): void {
+  const active = store.getActive()
+  if (!active) return
+  try {
+    fs.rmSync(path.join(active.path, '.pi-box', 'rpc-bridge.log.ready'), { force: true })
+  } catch {
+    // ignore
+  }
+}
+
 async function restartVm(): Promise<void> {
   const active = store.getActive()
   if (!active) {
     broadcast()
     return
   }
+  // The VM (and its port forwards) is about to disappear; drop the RPC session.
+  await rpc.teardown()
+  clearRpcReadyMarker()
   await vm.start({ [MOUNT_POINT]: active.path })
   broadcast()
 }
@@ -86,6 +120,7 @@ void app.whenReady().then(async () => {
   registerIpc({
     vm,
     store,
+    rpc,
     buildState,
     broadcast,
     restartVm,
@@ -94,12 +129,15 @@ void app.whenReady().then(async () => {
 
   vm.on('status', () => broadcast())
   vm.on('output', broadcastOutput)
+  rpc.on('event', broadcastRpcEvent)
+  rpc.on('state', broadcastRpcState)
 
   createWindow()
 
   // Boot the VM with the last used workspace mounted at MOUNT_POINT.
   const active = store.getActive()
   if (active) {
+    clearRpcReadyMarker()
     await vm.start({ [MOUNT_POINT]: active.path })
     broadcast()
   }
@@ -121,11 +159,20 @@ let quitting = false
 
 app.on('before-quit', (event) => {
   if (quitting) return
-  // Wait for the VM to stop (which flushes the persistent-root ext4/overlay
-  // page cache via sync) before actually quitting.
+  // Close the RPC session, then wait for the VM to stop (which flushes the
+  // persistent-root ext4/overlay page cache via sync) before actually quitting.
   event.preventDefault()
   quitting = true
-  void vm.stop().finally(() => {
-    app.quit()
-  })
+  void (async () => {
+    try {
+      await rpc.teardown()
+    } catch {
+      // ignore
+    }
+    try {
+      await vm.stop()
+    } finally {
+      app.quit()
+    }
+  })()
 })

@@ -4,6 +4,9 @@ import path from 'node:path'
 import os from 'node:os'
 import { randomUUID } from 'node:crypto'
 import type { FileNode, Workspace } from '../shared/types'
+// The guest RPC bridge is authored as a real script (scripts/pi-rpc-bridge.py)
+// and inlined here at build time, so there is a single source of truth.
+import piRpcBridgeSource from '../../scripts/pi-rpc-bridge.py?raw'
 
 const DEFAULT_WORKSPACE_DIR = path.join(os.homedir(), 'pi-box-workspace')
 const MAX_ENTRIES_PER_DIR = 500
@@ -227,6 +230,11 @@ export class WorkspaceStore {
 
       const tmuxConfPath = path.join(piDir, 'tmux.conf')
       fs.writeFileSync(tmuxConfPath, TMUX_CONF, 'utf8')
+
+      // Guest-side bridge that exposes `pi --mode rpc` over TCP for the chat
+      // UI (see docs/pi-rpc-ui-design.md). App-owned: refreshed every boot.
+      const bridgePath = path.join(piDir, 'pi-rpc-bridge.py')
+      fs.writeFileSync(bridgePath, piRpcBridgeSource, 'utf8')
 
       // Remove the old PTY-supervisor helper seeded by earlier builds.
       const legacySupervisor = path.join(piDir, 'tty-supervisor.py')

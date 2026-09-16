@@ -4,9 +4,18 @@ import LoadingScreen from './components/LoadingScreen'
 import NetworkSettings from './components/NetworkSettings'
 import WorkspaceSidebar from './components/WorkspaceSidebar'
 import TerminalView from './components/TerminalView'
+import ChatView from './components/ChatView'
+import AppHeader, { type AppView } from './components/AppHeader'
 
 export default function App() {
   const [state, setState] = useState<AppState | null>(null)
+  const [view, setView] = useState<AppView>(() => {
+    try {
+      return (localStorage.getItem('pibox.view') as AppView | null) ?? 'chat'
+    } catch {
+      return 'chat'
+    }
+  })
   const [sidebarVisible, setSidebarVisible] = useState<boolean>(() => {
     try {
       return localStorage.getItem('pibox.sidebar') !== 'hidden'
@@ -80,6 +89,15 @@ export default function App() {
     window.pibox.clearFirewall().catch((err) => console.error(err))
   }, [])
 
+  const setActiveView = useCallback((next: AppView) => {
+    setView(next)
+    try {
+      localStorage.setItem('pibox.view', next)
+    } catch {
+      // ignore storage errors
+    }
+  }, [])
+
   const toggleSidebar = useCallback(() => {
     setSidebarVisible((prev) => {
       const next = !prev
@@ -105,14 +123,19 @@ export default function App() {
           onSelect={setActiveWorkspace}
           onOpenFolder={openFolder}
         />
-        <TerminalView
-          state={state}
-          sidebarVisible={sidebarVisible}
-          onToggleSidebar={toggleSidebar}
-          onRestart={restart}
-          onToggleNetwork={toggleNetwork}
-          onOpenNetworkSettings={() => setNetworkOpen(true)}
-        />
+        <section className="workspace-pane">
+          <AppHeader
+            state={state}
+            view={view}
+            onSetView={setActiveView}
+            sidebarVisible={sidebarVisible}
+            onToggleSidebar={toggleSidebar}
+            onRestart={restart}
+            onToggleNetwork={toggleNetwork}
+            onOpenNetworkSettings={() => setNetworkOpen(true)}
+          />
+          {view === 'chat' ? <ChatView state={state} /> : <TerminalView state={state} />}
+        </section>
       </div>
 
       {!ready && <LoadingScreen status={state?.status} message={state?.statusMessage} onRestart={restart} />}

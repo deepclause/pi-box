@@ -1,5 +1,22 @@
 import { contextBridge, ipcRenderer, shell } from 'electron'
 import type { AppState, FileNode, FirewallRule, OpenResult } from '../shared/types'
+import type { RpcEvent, RpcModelInfo, RpcState, RpcStreamingBehavior } from '../shared/rpc-types'
+
+export interface PiBoxRpcApi {
+  getState(): Promise<RpcState>
+  open(): Promise<RpcState>
+  getEntries(): Promise<unknown>
+  prompt(message: string, behavior?: RpcStreamingBehavior): Promise<RpcState>
+  steer(message: string): Promise<RpcState>
+  followUp(message: string): Promise<RpcState>
+  abort(): Promise<RpcState>
+  clearQueue(): Promise<{ steering: string[]; followUp: string[] }>
+  getAvailableModels(): Promise<RpcModelInfo[]>
+  setModel(provider: string, modelId: string): Promise<RpcState>
+  setThinkingLevel(level: string): Promise<RpcState>
+  onEvent(cb: (event: RpcEvent) => void): () => void
+  onState(cb: (state: RpcState) => void): () => void
+}
 
 export interface PiBoxApi {
   getState(): Promise<AppState>
@@ -11,6 +28,7 @@ export interface PiBoxApi {
   openFolder(id: string): Promise<OpenResult>
   readTree(id: string, dirPath?: string): Promise<FileNode[]>
   termInput(data: string): void
+  startPiTui(): void
   termResize(cols: number, rows: number): void
   clipboardReadText(): Promise<string>
   clipboardWriteText(text: string): Promise<void>
@@ -24,6 +42,7 @@ export interface PiBoxApi {
   removePortForward(hostPort: number): Promise<AppState>
   onState(cb: (state: AppState) => void): () => void
   onOutput(cb: (data: string) => void): () => void
+  rpc: PiBoxRpcApi
 }
 
 const api: PiBoxApi = {
@@ -36,6 +55,7 @@ const api: PiBoxApi = {
   openFolder: (id) => ipcRenderer.invoke('pibox:openFolder', id),
   readTree: (id, dirPath) => ipcRenderer.invoke('pibox:readTree', id, dirPath),
   termInput: (data) => ipcRenderer.send('pibox:termInput', data),
+  startPiTui: () => ipcRenderer.send('pibox:startPiTui'),
   termResize: (cols, rows) => ipcRenderer.send('pibox:termResize', cols, rows),
   clipboardReadText: () => ipcRenderer.invoke('pibox:clipboardReadText'),
   clipboardWriteText: (text) => ipcRenderer.invoke('pibox:clipboardWriteText', text),
@@ -60,6 +80,32 @@ const api: PiBoxApi = {
     const listener = (_event: Electron.IpcRendererEvent, data: string): void => cb(data)
     ipcRenderer.on('pibox:output', listener)
     return () => ipcRenderer.removeListener('pibox:output', listener)
+  },
+
+  rpc: {
+    getState: () => ipcRenderer.invoke('pibox:rpc:state'),
+    open: () => ipcRenderer.invoke('pibox:rpc:open'),
+    getEntries: () => ipcRenderer.invoke('pibox:rpc:getEntries'),
+    prompt: (message, behavior) => ipcRenderer.invoke('pibox:rpc:prompt', message, behavior),
+    steer: (message) => ipcRenderer.invoke('pibox:rpc:steer', message),
+    followUp: (message) => ipcRenderer.invoke('pibox:rpc:followUp', message),
+    abort: () => ipcRenderer.invoke('pibox:rpc:abort'),
+    clearQueue: () => ipcRenderer.invoke('pibox:rpc:clearQueue'),
+    getAvailableModels: () => ipcRenderer.invoke('pibox:rpc:getAvailableModels'),
+    setModel: (provider, modelId) => ipcRenderer.invoke('pibox:rpc:setModel', provider, modelId),
+    setThinkingLevel: (level) => ipcRenderer.invoke('pibox:rpc:setThinkingLevel', level),
+
+    onEvent: (cb) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: RpcEvent): void => cb(payload)
+      ipcRenderer.on('pibox:rpc:event', listener)
+      return () => ipcRenderer.removeListener('pibox:rpc:event', listener)
+    },
+
+    onState: (cb) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: RpcState): void => cb(payload)
+      ipcRenderer.on('pibox:rpc:state', listener)
+      return () => ipcRenderer.removeListener('pibox:rpc:state', listener)
+    }
   }
 }
 

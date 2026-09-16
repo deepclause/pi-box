@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { AgentVM } from 'deepclause-agentvm'
 import type { FirewallRule, VmStatus } from '../shared/types'
+import { PI_RPC_GUEST_PORT } from '../shared/rpc-types'
 
 // busybox ash queries the terminal for the cursor position once its prompt is
 // interactive. This tells us the shell is ready to receive the startup script.
@@ -14,6 +15,9 @@ const DSR_RESPONSE = '\x1b[1;1R'
 // consumes pi's OSC title escape, so we can't use the old `π - …` marker. The
 // footer text is a second, always-visible signal.
 const PI_READY_MARKERS = ['Press ctrl+o', 'ctrl+c/ctrl+d']
+// The VM boots to a shell now (the chat UI owns the pi process), so readiness
+// is driven by this short delay after the startup script, not pi's TUI markers.
+const READY_DELAY_MS = 3000
 
 type Phase = 'booting' | 'starting' | 'ready'
 
@@ -117,7 +121,7 @@ export class VmManager extends EventEmitter {
       await this.write(DSR_RESPONSE)
       // The script is consumed by the shell once it reads stdin.
       await this.write(this.buildStartupScript(mountPoint, network))
-      this.scheduleReadyFallback(token)
+      this.scheduleReady(token)
     } catch (err) {
       if (token !== this.startToken) return
       this.setStatus('error', err instanceof Error ? err.message : String(err))
@@ -139,6 +143,17 @@ export class VmManager extends EventEmitter {
     await this.write('\x02:')
     await new Promise((resolve) => setTimeout(resolve, 250))
     await this.write(`new-window "vi ${vmPath}"\r`)
+  }
+
+  /**
+   * Open the pi TUI in a new tmux window. The default window is a shell now
+   * (the chat UI owns the RPC pi); this preserves easy access to the TUI.
+   */
+  async startPiTui(): Promise<void> {
+    if (!this.vm || this.phase !== 'ready') return
+    await this.write('\x02:')
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    await this.write('new-window "pi"\r')
   }
 
   /** Toggle guest networking at runtime (no VM restart). */
@@ -223,10 +238,21 @@ export class VmManager extends EventEmitter {
     // them (extra env vars, or PI_BOX_TMUX_CONF pointing at a custom tmux conf).
     lines.push(`if [ -f ${configFile} ]; then . ${configFile}; fi`)
     lines.push(`cd ${mountPoint}`)
+    // Guest-side RPC bridge for the chat UI. Launch it first so it can warm a
+    // pi process while the NIC comes up. Remove any stale readiness marker
+    // first: the workspace (and thus the marker) survives VM restarts.
+    lines.push(`rm -f ${piBoxDir}/rpc-bridge.log.ready`)
+    lines.push(
+      `nohup python3 ${piDir}/pi-rpc-bridge.py --port ${PI_RPC_GUEST_PORT} --log ${piBoxDir}/rpc-bridge.log >/dev/null 2>&1 &`
+    )
     // Guest-side resize daemon (TIOCSWINSZ on the console). tmux then
     // propagates the size to pi. Multiplexing is handled by tmux itself.
     lines.push(`python3 ${piDir}/tty-resize-daemon.py &`)
-    lines.push(`tmux -f "\${PI_BOX_TMUX_CONF:-${piDir}/tmux.conf}" new-session -s pi -n pi pi`)
+    // Boot to a shell, not the pi TUI: the chat UI now owns the pi process
+    // (headless, over RPC) and running a second pi just contends for the
+    // single guest hart. The pi TUI is still one click/keystroke away in the
+    // terminal (`VmManager.startPiTui`, or just run `pi`).
+    lines.push(`tmux -f "\${PI_BOX_TMUX_CONF:-${piDir}/tmux.conf}" new-session -s pi -n shell`)
 
     return lines.join('\n') + '\n'
   }
@@ -252,7 +278,7 @@ export class VmManager extends EventEmitter {
 
   private enterStartingPhase(): void {
     this.phase = 'starting'
-    this.setStatus('loading', 'Starting pi…')
+    this.setStatus('loading', 'Starting…')
   }
 
   private waitForShellReady(timeoutMs: number, token: number): Promise<void> {
@@ -282,16 +308,17 @@ export class VmManager extends EventEmitter {
     this.setStatus('ready')
   }
 
-  private scheduleReadyFallback(token: number): void {
+  private scheduleReady(token: number): void {
     this.clearReadyFallback()
-    // Marker detection usually fires within ~30s of pi launch. The fallback
-    // guarantees the splash never hangs forever even if markers change.
+    // We boot to a shell, so there is no pi TUI marker to wait for; mark ready
+    // shortly after the startup script is injected. pi (TUI or RPC) then starts
+    // on its own and the chat pane tracks its own readiness.
     this.readyFallback = setTimeout(() => {
       this.readyFallback = null
       if (token === this.startToken && this.phase !== 'ready' && !this.stopping) {
         this.markReady(token)
       }
-    }, 150_000)
+    }, READY_DELAY_MS)
   }
 
   private clearReadyFallback(): void {

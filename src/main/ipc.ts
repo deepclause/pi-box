@@ -1,6 +1,8 @@
 import { clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
 import path from 'node:path'
 import type { AppState, FirewallRule, OpenResult } from '../shared/types'
+import type { RpcStreamingBehavior } from '../shared/rpc-types'
+import type { RpcSessionManager } from './rpc'
 import type { VmManager } from './vm'
 import type { WorkspaceStore } from './workspaces'
 
@@ -9,6 +11,7 @@ export const MOUNT_POINT = '/workspace'
 export interface IpcContext {
   vm: VmManager
   store: WorkspaceStore
+  rpc: RpcSessionManager
   buildState: () => AppState
   broadcast: () => void
   restartVm: () => Promise<void>
@@ -16,7 +19,7 @@ export interface IpcContext {
 }
 
 export function registerIpc(ctx: IpcContext): void {
-  const { vm, store } = ctx
+  const { vm, store, rpc } = ctx
 
   ipcMain.handle('pibox:getState', () => ctx.buildState())
 
@@ -78,6 +81,51 @@ export function registerIpc(ctx: IpcContext): void {
     return ctx.buildState()
   })
 
+  // --- pi RPC chat (Phase 1: one live session) ---
+
+  ipcMain.handle('pibox:rpc:state', () => rpc.state)
+
+  ipcMain.handle('pibox:rpc:open', async () => {
+    await rpc.ensureSession()
+    return rpc.state
+  })
+
+  ipcMain.handle('pibox:rpc:getEntries', async () => rpc.getEntries())
+
+  ipcMain.handle('pibox:rpc:prompt', async (_event, message: string, behavior?: RpcStreamingBehavior) => {
+    await rpc.prompt(message, behavior)
+    return rpc.state
+  })
+
+  ipcMain.handle('pibox:rpc:steer', async (_event, message: string) => {
+    await rpc.steer(message)
+    return rpc.state
+  })
+
+  ipcMain.handle('pibox:rpc:followUp', async (_event, message: string) => {
+    await rpc.followUp(message)
+    return rpc.state
+  })
+
+  ipcMain.handle('pibox:rpc:abort', async () => {
+    await rpc.abort()
+    return rpc.state
+  })
+
+  ipcMain.handle('pibox:rpc:clearQueue', async () => rpc.clearQueue())
+
+  ipcMain.handle('pibox:rpc:getAvailableModels', async () => rpc.getAvailableModels())
+
+  ipcMain.handle('pibox:rpc:setModel', async (_event, provider: string, modelId: string) => {
+    await rpc.setModel(provider, modelId)
+    return rpc.state
+  })
+
+  ipcMain.handle('pibox:rpc:setThinkingLevel', async (_event, level: string) => {
+    await rpc.setThinkingLevel(level)
+    return rpc.state
+  })
+
   ipcMain.handle('pibox:addPortForward', async (_event, config: { hostPort: number; guestPort: number; guestHost?: string }) => {
     await vm.addPortForward(config)
     ctx.broadcast()
@@ -135,6 +183,10 @@ export function registerIpc(ctx: IpcContext): void {
 
   ipcMain.handle('pibox:readTree', (_event, id: string, dirPath?: string) => {
     return store.readTree(id, dirPath)
+  })
+
+  ipcMain.on('pibox:startPiTui', () => {
+    void vm.startPiTui()
   })
 
   ipcMain.on('pibox:termInput', (_event, data: string) => {
