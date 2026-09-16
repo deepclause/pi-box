@@ -9,13 +9,9 @@ import AppHeader, { type AppView } from './components/AppHeader'
 
 export default function App() {
   const [state, setState] = useState<AppState | null>(null)
-  const [view, setView] = useState<AppView>(() => {
-    try {
-      return (localStorage.getItem('pibox.view') as AppView | null) ?? 'chat'
-    } catch {
-      return 'chat'
-    }
-  })
+  // Always land on the chat; the terminal is one click away. (The view is
+  // intentionally not persisted — the chat is the primary interface.)
+  const [view, setView] = useState<AppView>('chat')
   const [sidebarVisible, setSidebarVisible] = useState<boolean>(() => {
     try {
       return localStorage.getItem('pibox.sidebar') !== 'hidden'
@@ -105,11 +101,6 @@ export default function App() {
 
   const setActiveView = useCallback((next: AppView) => {
     setView(next)
-    try {
-      localStorage.setItem('pibox.view', next)
-    } catch {
-      // ignore storage errors
-    }
   }, [])
 
   // Open a file in vi inside a new tmux window, then reveal the terminal so the
