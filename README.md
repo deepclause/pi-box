@@ -70,7 +70,7 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 ## Network & persistence
 
-Built on `deepclause-agentvm` 0.3.0:
+Built on `deepclause-agentvm` 0.3.2:
 
 - **Network on/off** — toggle guest networking at runtime (header button or gear menu).
 - **Port forwarding** — expose guest TCP servers on host ports; add/remove at runtime.
@@ -202,7 +202,7 @@ npm install
 npm run dev
 ```
 
-> `deepclause-agentvm` is an exact npm pin (currently `0.3.0`), so the app uses
+> `deepclause-agentvm` is an exact npm pin (currently `0.3.2`), so the app uses
 > the published package (including its ~322 MB `agentvm-alpine-python.wasm`
 > image).
 

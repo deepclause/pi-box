@@ -15,7 +15,7 @@ structure, how it works, known quirks, tests, and the release process.
   - `pi-box-app/` → pushed to `deepclause/pi-box`
   - `agentvm/` → a **separate** checkout of `deepclause/agentvm`
 - The app does **not** vendor agentvm. It depends on the published npm package
-  `deepclause-agentvm` (**exact pin, currently `0.3.1`**). agentvm changes must
+  `deepclause-agentvm` (**exact pin, currently `0.3.2`**). agentvm changes must
   be published to npm before the app can consume them.
 
 ---
