@@ -10,6 +10,7 @@ export type ChatBlock =
       name: string
       argsText: string
       result?: string
+      images?: Array<{ data: string; mimeType: string }>
       isError?: boolean
       running?: boolean
     }
@@ -77,14 +78,38 @@ function contentToText(content: unknown): string {
     .join('\n')
 }
 
-function attachToolResult(state: ChatState, toolCallId: string, result: string, isError: boolean): ChatState {
+function contentImages(content: unknown): Array<{ data: string; mimeType: string }> {
+  if (!Array.isArray(content)) return []
+  const images: Array<{ data: string; mimeType: string }> = []
+  for (const raw of content) {
+    const block = asRecord(raw)
+    if (block?.type === 'image' && typeof block.data === 'string') {
+      images.push({ data: block.data, mimeType: String(block.mimeType ?? 'image/png') })
+    }
+  }
+  return images
+}
+
+function attachToolResult(
+  state: ChatState,
+  toolCallId: string,
+  result: string,
+  isError: boolean,
+  images: Array<{ data: string; mimeType: string }> = []
+): ChatState {
   for (let i = state.messages.length - 1; i >= 0; i--) {
     const message = state.messages[i]
     const index = message.blocks.findIndex((b) => b.type === 'toolCall' && b.id === toolCallId)
     if (index >= 0) {
       const blocks = message.blocks.slice()
       const block = blocks[index] as Extract<ChatBlock, { type: 'toolCall' }>
-      blocks[index] = { ...block, result, isError, running: false }
+      blocks[index] = {
+        ...block,
+        result,
+        isError,
+        running: false,
+        images: images.length ? images : block.images
+      }
       const messages = state.messages.slice()
       messages[i] = { ...message, blocks }
       return { ...state, messages }
@@ -136,7 +161,8 @@ export function messagesFromEntries(data: unknown): ChatMessage[] {
         state,
         String(message.toolCallId ?? ''),
         contentToText(message.content),
-        Boolean(message.isError)
+        Boolean(message.isError),
+        contentImages(message.content)
       )
     } else if (role === 'bashExecution') {
       state = {
@@ -304,13 +330,13 @@ export function reduceEvent(state: ChatState, event: RpcEvent): ChatState {
       const toolCallId = String(event.toolCallId ?? '')
       const partial = asRecord(event.partialResult)
       const text = partial ? contentToText(partial.content) : ''
-      return attachToolResult(state, toolCallId, text, false)
+      return attachToolResult(state, toolCallId, text, false, partial ? contentImages(partial.content) : [])
     }
     case 'tool_execution_end': {
       const toolCallId = String(event.toolCallId ?? '')
       const result = asRecord(event.result)
       const text = result ? contentToText(result.content) : ''
-      return attachToolResult(state, toolCallId, text, Boolean(event.isError))
+      return attachToolResult(state, toolCallId, text, Boolean(event.isError), result ? contentImages(result.content) : [])
     }
     case 'agent_settled': {
       if (!state.activeAssistantId) return state

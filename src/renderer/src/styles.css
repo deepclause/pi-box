@@ -1931,3 +1931,17 @@ body {
   color: var(--text);
   border-color: var(--accent);
 }
+
+.tool-card-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px 0;
+}
+
+.tool-card-images img {
+  max-width: 240px;
+  max-height: 240px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}

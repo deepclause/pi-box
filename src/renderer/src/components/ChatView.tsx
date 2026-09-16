@@ -127,6 +127,13 @@ function ToolCard({ block }: { block: Extract<ChatBlock, { type: 'toolCall' }> }
         {block.isError ? <span className="tool-card-status error">error</span> : null}
       </div>
       {block.argsText ? <pre className="tool-card-args">{block.argsText}</pre> : null}
+      {block.images?.length ? (
+        <div className="tool-card-images">
+          {block.images.map((image, index) => (
+            <img key={index} src={`data:${image.mimeType};base64,${image.data}`} alt="tool result" />
+          ))}
+        </div>
+      ) : null}
       {block.result ? <pre className="tool-card-result">{block.result}</pre> : null}
     </div>
   )
@@ -187,8 +194,10 @@ export default function ChatView({ state }: { state: AppState | null }) {
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [forkMessages, setForkMessages] = useState<RpcForkMessage[] | null>(null)
   const [tree, setTree] = useState<RpcTree | null>(null)
+  const [elapsed, setElapsed] = useState(0)
   const [commandIndex, setCommandIndex] = useState(0)
   const transcriptRef = useRef<HTMLDivElement | null>(null)
+  const streamStartRef = useRef<number | null>(null)
   const openingRef = useRef(false)
   const retryRef = useRef(0)
   const noticeSeq = useRef(0)
@@ -355,6 +364,20 @@ export default function ChatView({ state }: { state: AppState | null }) {
     const element = transcriptRef.current
     if (element) element.scrollTop = element.scrollHeight
   }, [chat, notices])
+
+  // Elapsed time while the agent is streaming.
+  useEffect(() => {
+    if (!rpcState.isStreaming) {
+      streamStartRef.current = null
+      setElapsed(0)
+      return
+    }
+    if (streamStartRef.current == null) streamStartRef.current = Date.now()
+    const timer = setInterval(() => {
+      setElapsed(Math.round((Date.now() - (streamStartRef.current ?? Date.now())) / 1000))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [rpcState.isStreaming])
 
   const send = useCallback(async () => {
     const text = input.trim()
@@ -692,7 +715,7 @@ export default function ChatView({ state }: { state: AppState | null }) {
               </button>
               <UsageBar stats={rpcState.stats} />
               {rpcState.isCompacting ? <span className="chat-streaming">compacting</span> : null}
-              {rpcState.isStreaming ? <span className="chat-streaming">streaming</span> : null}
+              {rpcState.isStreaming ? <span className="chat-streaming">streaming{elapsed ? ` · ${elapsed}s` : ''}</span> : null}
             </div>
 
             {forkMessages ? (
