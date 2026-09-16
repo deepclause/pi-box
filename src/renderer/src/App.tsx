@@ -23,6 +23,13 @@ export default function App() {
       return true
     }
   })
+  const [sessionsVisible, setSessionsVisible] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('pibox.sessions') !== 'hidden'
+    } catch {
+      return true
+    }
+  })
   const [networkOpen, setNetworkOpen] = useState(false)
 
   useEffect(() => {
@@ -98,6 +105,18 @@ export default function App() {
     }
   }, [])
 
+  const toggleSessions = useCallback(() => {
+    setSessionsVisible((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('pibox.sessions', next ? 'visible' : 'hidden')
+      } catch {
+        // ignore storage errors
+      }
+      return next
+    })
+  }, [])
+
   const toggleSidebar = useCallback(() => {
     setSidebarVisible((prev) => {
       const next = !prev
@@ -130,11 +149,13 @@ export default function App() {
             onSetView={setActiveView}
             sidebarVisible={sidebarVisible}
             onToggleSidebar={toggleSidebar}
+            sessionsVisible={sessionsVisible}
+            onToggleSessions={toggleSessions}
             onRestart={restart}
             onToggleNetwork={toggleNetwork}
             onOpenNetworkSettings={() => setNetworkOpen(true)}
           />
-          {view === 'chat' ? <ChatView state={state} /> : <TerminalView state={state} />}
+          {view === 'chat' ? <ChatView state={state} sessionsVisible={sessionsVisible} /> : <TerminalView state={state} />}
         </section>
       </div>
 

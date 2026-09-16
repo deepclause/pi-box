@@ -9,19 +9,19 @@ interface Props {
 }
 
 const TERMINAL_THEME = {
-  background: '#0b0f16',
-  foreground: '#dbe4f0',
-  cursor: '#7aa2f7',
-  cursorAccent: '#0b0f16',
-  selectionBackground: '#2b3b5c',
-  black: '#11151c',
-  red: '#f7768e',
-  green: '#9ece6a',
-  yellow: '#e0af68',
-  blue: '#7aa2f7',
-  magenta: '#bb9af7',
-  cyan: '#7dcfff',
-  white: '#c0caf5'
+  background: '#141416',
+  foreground: '#d8d8dc',
+  cursor: '#8aa0e8',
+  cursorAccent: '#141416',
+  selectionBackground: '#3a3a42',
+  black: '#1c1c1f',
+  red: '#e8757f',
+  green: '#7fc98a',
+  yellow: '#e0b060',
+  blue: '#7c9cf5',
+  magenta: '#b48ee0',
+  cyan: '#6fc3e0',
+  white: '#d8d8dc'
 }
 
 export default function TerminalView({ state }: Props) {

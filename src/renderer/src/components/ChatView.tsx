@@ -25,7 +25,7 @@ import ToolCard from './ToolCard'
 import SessionsPanel from './SessionsPanel'
 import ExtensionUi from './ExtensionUi'
 import BranchTree from './BranchTree'
-import { PaperclipIcon, SendIcon, StopIcon } from './icons'
+import { MoreIcon, PaperclipIcon, SendIcon, StopIcon } from './icons'
 
 interface Attachment {
   id: number
@@ -155,7 +155,7 @@ function UsageBar({ stats }: { stats: RpcSessionStats | undefined }) {
   )
 }
 
-export default function ChatView({ state }: { state: AppState | null }) {
+export default function ChatView({ state, sessionsVisible }: { state: AppState | null; sessionsVisible: boolean }) {
   const [rpcState, setRpcState] = useState<RpcState>(INITIAL_RPC_STATE)
   const [chat, setChat] = useState<ChatState>(EMPTY_STATE)
   const [input, setInput] = useState('')
@@ -175,6 +175,7 @@ export default function ChatView({ state }: { state: AppState | null }) {
   const [tree, setTree] = useState<RpcTree | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [commandIndex, setCommandIndex] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
   const transcriptRef = useRef<HTMLDivElement | null>(null)
   const lastSessionFileRef = useRef<string | null>(null)
   const streamStartRef = useRef<number | null>(null)
@@ -556,6 +557,10 @@ export default function ChatView({ state }: { state: AppState | null }) {
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
     if (event.key === 'Escape') {
+      if (menuOpen) {
+        setMenuOpen(false)
+        return
+      }
       if (forkMessages) {
         setForkMessages(null)
         return
@@ -611,14 +616,16 @@ export default function ChatView({ state }: { state: AppState | null }) {
   return (
     <section className="chat-pane">
       <div className="chat-body">
-        <SessionsPanel
-          sessions={sessions}
-          onSelect={(file) => void selectSession(file)}
-          onNew={() => void newSession()}
-          onDelete={(file) => void deleteSession(file)}
-          onRename={(file, name) => void renameSession(file, name)}
-          onExport={() => void exportSession()}
-        />
+        {sessionsVisible ? (
+          <SessionsPanel
+            sessions={sessions}
+            onSelect={(file) => void selectSession(file)}
+            onNew={() => void newSession()}
+            onDelete={(file) => void deleteSession(file)}
+            onRename={(file, name) => void renameSession(file, name)}
+            onExport={() => void exportSession()}
+          />
+        ) : null}
         <div className="chat-main">
           <div className="chat-transcript" ref={transcriptRef}>
             {busy ? (
@@ -690,21 +697,58 @@ export default function ChatView({ state }: { state: AppState | null }) {
                   {value}
                 </span>
               ))}
-              <button className="chat-action" title="Fork from a previous message" onClick={() => void openFork()} disabled={rpcState.status !== 'ready'}>
-                Fork
-              </button>
-              <button className="chat-action" title="Clone this session" onClick={() => void cloneSession()} disabled={rpcState.status !== 'ready'}>
-                Clone
-              </button>
-              <button className="chat-action" title="View session branches" onClick={() => void openTree()} disabled={rpcState.status !== 'ready'}>
-                Branches
-              </button>
-              <button className="chat-action" title="Reconnect to pi" onClick={() => void reconnect()} disabled={state?.status !== 'ready'}>
-                Reconnect
-              </button>
               <UsageBar stats={rpcState.stats} />
               {rpcState.isCompacting ? <span className="chat-streaming">compacting</span> : null}
               {rpcState.isStreaming ? <span className="chat-streaming">streaming{elapsed ? ` · ${elapsed}s` : ''}</span> : null}
+              <div className="chat-menu">
+                <button className="icon-btn" title="Session actions" onClick={() => setMenuOpen((value) => !value)}>
+                  <MoreIcon size={16} />
+                </button>
+                {menuOpen ? (
+                  <div className="chat-menu-pop">
+                    <button
+                      className="chat-menu-item"
+                      disabled={rpcState.status !== 'ready'}
+                      onClick={() => {
+                        setMenuOpen(false)
+                        void openFork()
+                      }}
+                    >
+                      Fork from message…
+                    </button>
+                    <button
+                      className="chat-menu-item"
+                      disabled={rpcState.status !== 'ready'}
+                      onClick={() => {
+                        setMenuOpen(false)
+                        void cloneSession()
+                      }}
+                    >
+                      Clone session
+                    </button>
+                    <button
+                      className="chat-menu-item"
+                      disabled={rpcState.status !== 'ready'}
+                      onClick={() => {
+                        setMenuOpen(false)
+                        void openTree()
+                      }}
+                    >
+                      Browse branches
+                    </button>
+                    <button
+                      className="chat-menu-item"
+                      disabled={state?.status !== 'ready'}
+                      onClick={() => {
+                        setMenuOpen(false)
+                        void reconnect()
+                      }}
+                    >
+                      Reconnect
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             {forkMessages ? (

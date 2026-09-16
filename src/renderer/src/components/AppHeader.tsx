@@ -1,5 +1,5 @@
 import type { AppState } from '@shared/types'
-import { PiMark, PlusIcon, PanelIcon, RefreshIcon, GearIcon } from './icons'
+import { PiMark, PlusIcon, PanelIcon, RefreshIcon, GearIcon, ListIcon } from './icons'
 
 export type AppView = 'chat' | 'terminal'
 
@@ -9,6 +9,8 @@ interface Props {
   onSetView: (view: AppView) => void
   sidebarVisible: boolean
   onToggleSidebar: () => void
+  sessionsVisible: boolean
+  onToggleSessions: () => void
   onRestart: () => void
   onToggleNetwork: () => void
   onOpenNetworkSettings: () => void
@@ -20,6 +22,8 @@ export default function AppHeader({
   onSetView,
   sidebarVisible,
   onToggleSidebar,
+  sessionsVisible,
+  onToggleSessions,
   onRestart,
   onToggleNetwork,
   onOpenNetworkSettings
@@ -33,11 +37,22 @@ export default function AppHeader({
       <div className="terminal-header-left">
         <button
           className="icon-btn"
-          title={sidebarVisible ? 'Hide workspaces bar' : 'Show workspaces bar'}
+          title={sidebarVisible ? 'Hide workspaces' : 'Show workspaces'}
+          data-active={sidebarVisible ? 'true' : 'false'}
           onClick={onToggleSidebar}
         >
           <PanelIcon size={15} />
         </button>
+        {view === 'chat' ? (
+          <button
+            className="icon-btn"
+            title={sessionsVisible ? 'Hide sessions' : 'Show sessions'}
+            data-active={sessionsVisible ? 'true' : 'false'}
+            onClick={onToggleSessions}
+          >
+            <ListIcon size={15} />
+          </button>
+        ) : null}
         <PiMark size={16} className="pi-mark" />
         <span className="terminal-title">pi-box</span>
         <div className="view-switch" role="tablist" aria-label="View">

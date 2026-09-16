@@ -1,19 +1,20 @@
 :root {
-  --bg: #0b0f16;
-  --bg-panel: #0e141f;
-  --surface: #131a27;
-  --surface-hover: #1a2232;
-  --surface-active: #1b2436;
-  --border: #1d2636;
-  --border-soft: rgba(148, 163, 184, 0.08);
-  --text: #dbe4f0;
-  --text-dim: #8592a6;
-  --text-faint: #5c6a80;
-  --accent: #7aa2f7;
-  --cyan: #7dcfff;
-  --green: #9ece6a;
-  --amber: #e0af68;
-  --red: #f7768e;
+  /* Neutral, industrial grey palette (desktop-app feel). */
+  --bg: #1e1e21;
+  --bg-panel: #26262a;
+  --surface: #2e2e33;
+  --surface-hover: #35353b;
+  --surface-active: #3d3d44;
+  --border: #3a3a41;
+  --border-soft: rgba(255, 255, 255, 0.06);
+  --text: #e8e8ea;
+  --text-dim: #a4a4ac;
+  --text-faint: #6f6f79;
+  --accent: #7c9cf5;
+  --cyan: #6fc3e0;
+  --green: #7fc98a;
+  --amber: #e0b060;
+  --red: #e8757f;
   --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
   --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     sans-serif;
@@ -300,7 +301,7 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 8, 14, 0.6);
+  background: rgba(12, 12, 14, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -965,7 +966,7 @@ body {
 }
 
 .chat-transcript::-webkit-scrollbar-thumb {
-  background: #263149;
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 6px;
   border: 2px solid var(--bg);
 }
@@ -1698,7 +1699,7 @@ body {
 .ui-dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(4, 7, 12, 0.6);
+  background: rgba(12, 12, 14, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2001,4 +2002,82 @@ body {
   border-radius: 50%;
   display: inline-block;
   animation: chat-spin 0.8s linear infinite;
+}
+
+/* ---------- Full-width chat layout ---------- */
+
+.chat-empty,
+.chat-notice,
+.chat-msg,
+.chat-queue,
+.chat-attachments,
+.chat-fork-menu,
+.chat-widget,
+.chat-composer-meta,
+.chat-composer-row {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.chat-msg[data-role='user'] .chat-msg-body {
+  max-width: min(78%, 760px);
+}
+
+.tool-card-body {
+  background: transparent;
+}
+
+.workspace-list::-webkit-scrollbar-thumb,
+.workspace-tree::-webkit-scrollbar-thumb,
+.sessions-list::-webkit-scrollbar-thumb,
+.chat-transcript::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ---------- Chat toolbar overflow menu ---------- */
+
+.icon-btn[data-active='true'] {
+  color: var(--accent);
+  background: var(--surface-active);
+}
+
+.chat-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.chat-menu-pop {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 190px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+}
+
+.chat-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 6px 9px;
+  cursor: pointer;
+}
+
+.chat-menu-item:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.chat-menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
