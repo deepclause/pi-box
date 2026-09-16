@@ -7,9 +7,10 @@ const SYNC_INTERVAL_MS = 5000
 interface Props {
   workspaceId: string
   activeWorkspaceId: string | null
+  onEditFile: (workspaceId: string, hostPath: string) => void
 }
 
-export default function FileTree({ workspaceId, activeWorkspaceId }: Props) {
+export default function FileTree({ workspaceId, activeWorkspaceId, onEditFile }: Props) {
   const [nodes, setNodes] = useState<FileNode[] | null>(null)
   const [refreshNonce, setRefreshNonce] = useState(0)
 
@@ -56,6 +57,7 @@ export default function FileTree({ workspaceId, activeWorkspaceId }: Props) {
           key={node.path}
           workspaceId={workspaceId}
           activeWorkspaceId={activeWorkspaceId}
+          onEditFile={onEditFile}
           node={node}
           depth={0}
           refreshNonce={refreshNonce}
@@ -68,12 +70,13 @@ export default function FileTree({ workspaceId, activeWorkspaceId }: Props) {
 interface NodeProps {
   workspaceId: string
   activeWorkspaceId: string | null
+  onEditFile: (workspaceId: string, hostPath: string) => void
   node: FileNode
   depth: number
   refreshNonce: number
 }
 
-function TreeNode({ workspaceId, activeWorkspaceId, node, depth, refreshNonce }: NodeProps) {
+function TreeNode({ workspaceId, activeWorkspaceId, onEditFile, node, depth, refreshNonce }: NodeProps) {
   const isDir = node.type === 'directory'
   const [open, setOpen] = useState(false)
   const [children, setChildren] = useState<FileNode[] | null>(node.children ?? null)
@@ -111,7 +114,7 @@ function TreeNode({ workspaceId, activeWorkspaceId, node, depth, refreshNonce }:
   }, [refreshNonce])
 
   const edit = (): void => {
-    void window.pibox.editFile(workspaceId, node.path).catch((err) => console.error(err))
+    onEditFile(workspaceId, node.path)
   }
 
   return (
@@ -150,6 +153,7 @@ function TreeNode({ workspaceId, activeWorkspaceId, node, depth, refreshNonce }:
               key={child.path}
               workspaceId={workspaceId}
               activeWorkspaceId={activeWorkspaceId}
+              onEditFile={onEditFile}
               node={child}
               depth={depth + 1}
               refreshNonce={refreshNonce}

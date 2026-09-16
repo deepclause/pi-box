@@ -10,6 +10,7 @@ interface Props {
   onRemove: (id: string) => void
   onSelect: (id: string) => void
   onOpenFolder: (id: string) => void
+  onEditFile: (workspaceId: string, hostPath: string) => void
 }
 
 export default function WorkspaceSidebar({
@@ -18,7 +19,8 @@ export default function WorkspaceSidebar({
   onAdd,
   onRemove,
   onSelect,
-  onOpenFolder
+  onOpenFolder,
+  onEditFile
 }: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
@@ -72,6 +74,7 @@ export default function WorkspaceSidebar({
             onSelect={() => handleSelect(ws.id)}
             onRemove={() => onRemove(ws.id)}
             onOpenFolder={() => onOpenFolder(ws.id)}
+            onEditFile={onEditFile}
           />
         ))}
         {(!state || state.workspaces.length === 0) && (
@@ -98,6 +101,7 @@ interface ItemProps {
   onSelect: () => void
   onRemove: () => void
   onOpenFolder: () => void
+  onEditFile: (workspaceId: string, hostPath: string) => void
 }
 
 function WorkspaceItem({
@@ -108,7 +112,8 @@ function WorkspaceItem({
   onToggleExpand,
   onSelect,
   onRemove,
-  onOpenFolder
+  onOpenFolder,
+  onEditFile
 }: ItemProps) {
   return (
     <div className={`workspace-item ${active ? 'active' : ''}`}>
@@ -136,7 +141,7 @@ function WorkspaceItem({
       </div>
       {expanded && (
         <div className="workspace-tree">
-          <FileTree workspaceId={workspace.id} activeWorkspaceId={activeWorkspaceId} />
+          <FileTree workspaceId={workspace.id} activeWorkspaceId={activeWorkspaceId} onEditFile={onEditFile} />
         </div>
       )}
     </div>

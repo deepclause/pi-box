@@ -112,6 +112,16 @@ export default function App() {
     }
   }, [])
 
+  // Open a file in vi inside a new tmux window, then reveal the terminal so the
+  // user actually sees it.
+  const editFile = useCallback(
+    (workspaceId: string, hostPath: string) => {
+      window.pibox.editFile(workspaceId, hostPath).catch((err) => console.error(err))
+      setActiveView('terminal')
+    },
+    [setActiveView]
+  )
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     try {
@@ -161,6 +171,7 @@ export default function App() {
           onRemove={removeWorkspace}
           onSelect={setActiveWorkspace}
           onOpenFolder={openFolder}
+          onEditFile={editFile}
         />
         <section className="workspace-pane">
           <AppHeader
