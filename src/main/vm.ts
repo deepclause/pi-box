@@ -153,7 +153,11 @@ export class VmManager extends EventEmitter {
     if (!this.vm || this.phase !== 'ready') return
     await this.write('\x02:')
     await new Promise((resolve) => setTimeout(resolve, 200))
-    await this.write('new-window "pi"\r')
+    // Reuse the existing "pi" window in the single workspace session instead of
+    // piling up new ones.
+    await this.write(
+      'run-shell "tmux select-window -t pi-box:pi 2>/dev/null || tmux new-window -t pi-box -n pi pi"\r'
+    )
   }
 
   /** Toggle guest networking at runtime (no VM restart). */
@@ -252,7 +256,10 @@ export class VmManager extends EventEmitter {
     // (headless, over RPC) and running a second pi just contends for the
     // single guest hart. The pi TUI is still one click/keystroke away in the
     // terminal (`VmManager.startPiTui`, or just run `pi`).
-    lines.push(`tmux -f "\${PI_BOX_TMUX_CONF:-${piDir}/tmux.conf}" new-session -s pi -n shell`)
+    // `-A` attaches to the existing session if one is already running (e.g. a
+    // stale tmux server surviving in a persisted root), so there is exactly one
+    // tmux session per workspace; terminals are windows within it.
+    lines.push(`tmux -f "\${PI_BOX_TMUX_CONF:-${piDir}/tmux.conf}" new-session -A -s pi-box -n shell`)
 
     return lines.join('\n') + '\n'
   }

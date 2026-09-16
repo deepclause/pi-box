@@ -176,6 +176,11 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
   const [elapsed, setElapsed] = useState(0)
   const [commandIndex, setCommandIndex] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
+  // True between sending a prompt and the assistant's first token, so we can
+  // show a spinner where the reply will appear.
+  const [awaiting, setAwaiting] = useState(false)
+  // True while a session is being switched/created (pi has to load it).
+  const [switching, setSwitching] = useState(false)
   const transcriptRef = useRef<HTMLDivElement | null>(null)
   const lastSessionFileRef = useRef<string | null>(null)
   const streamStartRef = useRef<number | null>(null)
@@ -237,6 +242,14 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
     const unsubscribeEvent = window.pibox.rpc.onEvent((event) => {
       if (!mounted) return
       setChat((prev) => reduceEvent(prev, event))
+      if (
+        event.type === 'message_update' ||
+        event.type === 'agent_settled' ||
+        event.type === 'agent_end' ||
+        (event.type === 'message_start' && (event.message as { role?: string } | undefined)?.role === 'assistant')
+      ) {
+        setAwaiting(false)
+      }
       if (event.type === 'queue_update') {
         setQueue({
           steering: (event.steering as string[]) ?? [],
@@ -376,12 +389,14 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
     setInput('')
     setAttachments([])
     setCommandIndex(0)
+    if (!rpcState.isStreaming) setAwaiting(true)
     setChat((prev) => ({ ...prev, messages: [...prev.messages, makeUserMessage(text, images)] }))
     try {
       const behavior = rpcState.isStreaming ? 'steer' : undefined
       const next = await window.pibox.rpc.prompt(text, behavior, images)
       setRpcState(next)
     } catch (err) {
+      setAwaiting(false)
       setError(err instanceof Error ? err.message : String(err))
     }
   }, [input, attachments, rpcState.status, rpcState.isStreaming])
@@ -395,8 +410,9 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
 
   const selectSession = useCallback(
     async (file: string) => {
-      if (rpcState.status !== 'ready') return
+      if (rpcState.status !== 'ready' || switching) return
       setError(null)
+      setSwitching(true)
       try {
         setRpcState(await window.pibox.rpc.switchSession(file))
         await reloadTranscript()
@@ -404,14 +420,17 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
         setInput('')
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setSwitching(false)
       }
     },
-    [rpcState.status, reloadTranscript, reloadSessions]
+    [rpcState.status, switching, reloadTranscript, reloadSessions]
   )
 
   const newSession = useCallback(async () => {
-    if (rpcState.status !== 'ready') return
+    if (rpcState.status !== 'ready' || switching) return
     setError(null)
+    setSwitching(true)
     try {
       setRpcState(await window.pibox.rpc.newSession())
       await reloadTranscript()
@@ -419,8 +438,10 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
       setInput('')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSwitching(false)
     }
-  }, [rpcState.status, reloadTranscript, reloadSessions])
+  }, [rpcState.status, switching, reloadTranscript, reloadSessions])
 
   const renameSession = useCallback(
     async (_file: string, name: string) => {
@@ -447,12 +468,15 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
   const deleteSession = useCallback(
     async (file: string) => {
       setError(null)
+      setSwitching(true)
       try {
         setRpcState(await window.pibox.rpc.deleteSession(file))
         await reloadTranscript()
         await reloadSessions()
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setSwitching(false)
       }
     },
     [reloadTranscript, reloadSessions]
@@ -643,6 +667,7 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
         {sessionsVisible ? (
           <SessionsPanel
             sessions={sessions}
+            busy={switching}
             onSelect={(file) => void selectSession(file)}
             onNew={() => void newSession()}
             onDelete={(file) => void deleteSession(file)}
@@ -651,6 +676,11 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
           />
         ) : null}
         <div className="chat-main">
+          {switching ? (
+            <div className="chat-loading" aria-label="Loading session">
+              <span className="chat-awaiting-ball" />
+            </div>
+          ) : null}
           <div className="chat-transcript" ref={transcriptRef}>
             {busy ? (
               <div className="chat-starting">
@@ -667,6 +697,12 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
             ) : (
               chat.messages.map((message) => <Message key={message.id} message={message} />)
             )}
+            {awaiting && !busy ? (
+              <div className="chat-awaiting" aria-label="Waiting for pi">
+                <span className="chat-awaiting-ball" />
+              </div>
+            ) : null}
+
             {!busy
               ? notices.map((notice) => (
                   <div className="chat-notice" key={notice.id}>

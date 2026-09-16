@@ -4,6 +4,8 @@ import { CloseIcon, EditIcon, ExternalLinkIcon, PlusIcon } from './icons'
 
 interface Props {
   sessions: RpcSessionSummary[]
+  /** True while a switch is in flight; blocks interaction with the list. */
+  busy?: boolean
   onSelect: (file: string) => void
   onNew: () => void
   onDelete: (file: string) => void
@@ -21,7 +23,7 @@ function relativeTime(ms: number): string {
   return `${Math.round(hours / 24)}d`
 }
 
-export default function SessionsPanel({ sessions, onSelect, onNew, onDelete, onRename, onExport }: Props) {
+export default function SessionsPanel({ sessions, busy, onSelect, onNew, onDelete, onRename, onExport }: Props) {
   const [editing, setEditing] = useState<string | null>(null)
   const [value, setValue] = useState('')
   const [confirming, setConfirming] = useState<string | null>(null)
@@ -39,10 +41,10 @@ export default function SessionsPanel({ sessions, onSelect, onNew, onDelete, onR
   }
 
   return (
-    <aside className="sessions-panel">
+    <aside className="sessions-panel" data-busy={busy ? 'true' : 'false'}>
       <header className="sessions-header">
         <span className="sessions-title">Sessions</span>
-        <button className="icon-btn accent" title="New session (Ctrl/Cmd+N)" onClick={onNew}>
+        <button className="icon-btn accent" title="New session (Ctrl/Cmd+N)" onClick={onNew} disabled={busy}>
           <PlusIcon size={14} />
         </button>
       </header>

@@ -2840,3 +2840,45 @@ body {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.18);
 }
+
+/* ---------- Waiting-for-first-token indicator ---------- */
+
+.chat-awaiting {
+  margin: 0 0 16px;
+  padding: 2px 26px;
+  animation: rise 0.2s ease both;
+}
+
+.chat-awaiting-ball {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--text-dim);
+  animation: chat-spin 0.75s linear infinite;
+}
+
+/* ---------- Session switch loading state ---------- */
+
+.chat-main {
+  position: relative;
+}
+
+.chat-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-panel) 68%, transparent);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.sessions-panel[data-busy='true'] .sessions-list,
+.sessions-panel[data-busy='true'] .sessions-search {
+  pointer-events: none;
+  opacity: 0.55;
+}
