@@ -383,9 +383,12 @@ export class RpcSessionManager extends EventEmitter {
       if (!response.success) throw new Error(response.error ?? 'get_state failed')
       const data = (response.data ?? {}) as Record<string, unknown>
       const model = data.model as { provider?: string; id?: string; name?: string } | null | undefined
+      // Stay in "starting" while the session loads: pi may have opened a
+      // brand-new session and we then switch to the most recent one, so we must
+      // not report ready (and reveal an empty transcript) until that is done.
       this.setState({
-        status: 'ready',
-        statusMessage: undefined,
+        status: 'starting',
+        statusMessage: 'Loading session…',
         sessionId: (data.sessionId as string) ?? null,
         sessionName: data.sessionName as string | undefined,
         sessionFile: data.sessionFile as string | undefined,
@@ -394,7 +397,6 @@ export class RpcSessionManager extends EventEmitter {
         isStreaming: Boolean(data.isStreaming),
         isCompacting: Boolean(data.isCompacting)
       })
-      log(`ready (model ${this.stateValue.model?.id ?? 'none'})`)
       await this.refreshStats().catch(() => undefined)
 
       // Relaunch convenience: continue the most recent conversation when pi
@@ -402,6 +404,9 @@ export class RpcSessionManager extends EventEmitter {
       if (Number(data.messageCount ?? 0) === 0) {
         await this.resumeMostRecent(connection).catch(() => undefined)
       }
+
+      this.setState({ status: 'ready', statusMessage: undefined })
+      log(`ready (model ${this.stateValue.model?.id ?? 'none'}, session ${this.stateValue.sessionFile ?? 'none'})`)
       return this.state
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -692,7 +697,6 @@ export class RpcSessionManager extends EventEmitter {
     const data = (response.data ?? {}) as Record<string, unknown>
     const model = data.model as { provider?: string; id?: string; name?: string } | null | undefined
     this.setState({
-      status: 'ready',
       sessionId: (data.sessionId as string) ?? null,
       sessionName: data.sessionName as string | undefined,
       sessionFile: data.sessionFile as string | undefined,

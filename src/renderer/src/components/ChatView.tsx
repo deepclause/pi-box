@@ -313,6 +313,10 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
     if (openingRef.current) return
     openingRef.current = true
     setError(null)
+    // Keep the loading overlay up until the transcript and session list are
+    // rendered, so the fresh session pi opens isn't shown before the resumed
+    // one is loaded.
+    setSwitching(true)
     try {
       const next = await window.pibox.rpc.open()
       setRpcState(next)
@@ -321,6 +325,7 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
+      setSwitching(false)
       openingRef.current = false
     }
   }, [reloadTranscript, reloadSessions])
@@ -686,7 +691,7 @@ export default function ChatView({ state, sessionsVisible }: { state: AppState |
               <div className="chat-starting">
                 <div className="chat-starting-card">
                   <div className="chat-spinner" />
-                  <div className="chat-starting-title">Starting pi…</div>
+                  <div className="chat-starting-title">{rpcState.statusMessage ?? 'Starting pi…'}</div>
                   <div className="chat-starting-sub">pi runs inside the VM, so first launch takes ~30 seconds while it boots.</div>
                 </div>
               </div>
