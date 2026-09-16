@@ -580,6 +580,15 @@ export class RpcSessionManager extends EventEmitter {
     return this.state
   }
 
+  async exportHtml(outputPath?: string): Promise<{ path: string }> {
+    await this.ensureSession()
+    const command: Record<string, unknown> = { type: 'export_html' }
+    if (outputPath) command.outputPath = outputPath
+    const response = await this.connection!.send(command)
+    if (!response.success) throw new Error(response.error ?? 'export_html failed')
+    return (response.data ?? { path: '' }) as { path: string }
+  }
+
   /** Delete a session file, moving off it first if it is the live session. */
   async deleteSession(file: string): Promise<void> {
     const workspace = this.store.getActive()

@@ -32,6 +32,7 @@ export interface PiBoxRpcApi {
   newSession(): Promise<RpcState>
   switchSession(file: string): Promise<RpcState>
   deleteSession(file: string): Promise<RpcState>
+  exportHtml(outputPath?: string): Promise<{ path: string }>
   respondExtensionUi(response: RpcExtensionUIResponse): void
   onEvent(cb: (event: RpcEvent) => void): () => void
   onState(cb: (state: RpcState) => void): () => void
@@ -122,6 +123,7 @@ const api: PiBoxApi = {
     newSession: () => ipcRenderer.invoke('pibox:rpc:newSession'),
     switchSession: (file) => ipcRenderer.invoke('pibox:rpc:switchSession', file),
     deleteSession: (file) => ipcRenderer.invoke('pibox:rpc:deleteSession', file),
+    exportHtml: (outputPath) => ipcRenderer.invoke('pibox:rpc:exportHtml', outputPath),
     respondExtensionUi: (response) => ipcRenderer.send('pibox:rpc:extensionUi', response),
 
     onEvent: (cb) => {

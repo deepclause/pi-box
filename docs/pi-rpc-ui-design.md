@@ -765,13 +765,19 @@ Thinking blocks, tool cards (bash/edit/write/read), `get_session_stats` header,
 model/thinking pickers, queue chips, compaction/retry notices, error states,
 `/` command autocomplete.
 
-**Phase 3 — multi-session + extension UI.**
-Sidebar session list from `.pi/sessions`, new/rename/delete/fork/clone/export,
-`switch_session` reuse, extension UI dialogs/notify/status/widgets, images.
+**Phase 3 — multi-session + extension UI. ✅ done (core).**
+Sessions panel from `.pi/sessions` with new/switch/delete, `switch_session`
+reuse, and the live session shown even before its file exists (brand-new
+sessions have no file until the first message). Extension UI dialogs
+(`select`/`confirm`/`input`/`editor`), `notify` toasts, `setStatus`,
+`setWidget` and `set_editor_text` are handled. Rename/fork/clone/export and
+image attachments are still open (Phase 4).
 
-**Phase 4 — polish / power features.**
-`get_tree` branch navigator, terminal tabs via `tmux list-windows`, reconnect,
-`maxLiveSessions`, per-session settings, keyboard shortcuts mirroring the TUI.
+**Phase 4 — polish / power features. ◑ partial.**
+Done: inline session rename (`set_session_name`), `export_html`, and a
+Cmd/Ctrl+N new-session shortcut. Still open: `get_tree` branch navigator,
+terminal tabs via `tmux list-windows`, explicit reconnect, `maxLiveSessions`,
+per-session settings, image attachments, and the rest of the TUI keybindings.
 
 ---
 

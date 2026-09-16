@@ -197,6 +197,12 @@ export default function ChatView({ state }: { state: AppState | null }) {
     }
   }, [])
 
+  const pushToast = useCallback((message: string, kind = 'info') => {
+    const toast: Toast = { id: ++toastSeq.current, message, kind }
+    setToasts((prev) => [...prev, toast])
+    setTimeout(() => setToasts((prev) => prev.filter((item) => item.id !== toast.id)), 6000)
+  }, [])
+
   useEffect(() => {
     let mounted = true
     const unsubscribeState = window.pibox.rpc.onState((next) => {
@@ -221,9 +227,7 @@ export default function ChatView({ state }: { state: AppState | null }) {
         if (dialog) {
           setDialogs((prev) => [...prev, dialog])
         } else if (method === 'notify') {
-          const toast: Toast = { id: ++toastSeq.current, message: String(event.message ?? ''), kind: String(event.notifyType ?? 'info') }
-          setToasts((prev) => [...prev, toast])
-          setTimeout(() => setToasts((prev) => prev.filter((item) => item.id !== toast.id)), 6000)
+          pushToast(String(event.message ?? ''), String(event.notifyType ?? 'info'))
         } else if (method === 'setStatus') {
           const key = String(event.statusKey ?? '')
           setStatuses((prev) => {
@@ -264,7 +268,7 @@ export default function ChatView({ state }: { state: AppState | null }) {
       unsubscribeState()
       unsubscribeEvent()
     }
-  }, [reloadSessions])
+  }, [reloadSessions, pushToast])
 
   const open = useCallback(async () => {
     if (openingRef.current) return
@@ -367,6 +371,28 @@ export default function ChatView({ state }: { state: AppState | null }) {
     }
   }, [rpcState.status, reloadTranscript, reloadSessions])
 
+  const renameSession = useCallback(
+    async (_file: string, name: string) => {
+      if (!name) return
+      try {
+        setRpcState(await window.pibox.rpc.setSessionName(name))
+        await reloadSessions()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
+    },
+    [reloadSessions]
+  )
+
+  const exportSession = useCallback(async () => {
+    try {
+      const result = await window.pibox.rpc.exportHtml()
+      pushToast(`Exported session to ${result.path}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [pushToast])
+
   const deleteSession = useCallback(
     async (file: string) => {
       setError(null)
@@ -385,6 +411,18 @@ export default function ChatView({ state }: { state: AppState | null }) {
     window.pibox.rpc.respondExtensionUi(response)
     setDialogs((prev) => prev.slice(1))
   }, [])
+
+  // Cmd/Ctrl+N starts a fresh session.
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent): void => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'n') {
+        event.preventDefault()
+        void newSession()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [newSession])
 
   const selectModel = useCallback(async (value: string) => {
     const slash = value.indexOf('/')
@@ -453,6 +491,8 @@ export default function ChatView({ state }: { state: AppState | null }) {
           onSelect={(file) => void selectSession(file)}
           onNew={() => void newSession()}
           onDelete={(file) => void deleteSession(file)}
+          onRename={(file, name) => void renameSession(file, name)}
+          onExport={() => void exportSession()}
         />
         <div className="chat-main">
           <div className="chat-transcript" ref={transcriptRef}>

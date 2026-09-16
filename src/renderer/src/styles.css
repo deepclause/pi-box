@@ -1578,12 +1578,28 @@ body {
   color: var(--text-faint);
 }
 
-.session-delete {
+.session-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding-right: 4px;
   opacity: 0;
 }
 
-.session-item:hover .session-delete {
+.session-item:hover .session-actions {
   opacity: 1;
+}
+
+.session-rename {
+  flex: 1;
+  margin: 3px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12.5px;
+  padding: 5px 8px;
+  outline: none;
 }
 
 .chat-status {

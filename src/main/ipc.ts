@@ -153,6 +153,8 @@ export function registerIpc(ctx: IpcContext): void {
     return rpc.state
   })
 
+  ipcMain.handle('pibox:rpc:exportHtml', async (_event, outputPath?: string) => rpc.exportHtml(outputPath))
+
   ipcMain.on('pibox:rpc:extensionUi', (_event, response: RpcExtensionUIResponse) => {
     rpc.respondExtensionUi(response)
   })
