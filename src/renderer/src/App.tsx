@@ -23,6 +23,13 @@ export default function App() {
       return true
     }
   })
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      return localStorage.getItem('pibox.theme') === 'dark' ? 'dark' : 'light'
+    } catch {
+      return 'light'
+    }
+  })
   const [sessionsVisible, setSessionsVisible] = useState<boolean>(() => {
     try {
       return localStorage.getItem('pibox.sessions') !== 'hidden'
@@ -105,6 +112,19 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    try {
+      localStorage.setItem('pibox.theme', theme)
+    } catch {
+      // ignore storage errors
+    }
+  }, [theme])
+
+  const toggleTheme = useCallback(() => {
+    setTheme((value) => (value === 'light' ? 'dark' : 'light'))
+  }, [])
+
   const toggleSessions = useCallback(() => {
     setSessionsVisible((prev) => {
       const next = !prev
@@ -151,11 +171,17 @@ export default function App() {
             onToggleSidebar={toggleSidebar}
             sessionsVisible={sessionsVisible}
             onToggleSessions={toggleSessions}
+            theme={theme}
+            onToggleTheme={toggleTheme}
             onRestart={restart}
             onToggleNetwork={toggleNetwork}
             onOpenNetworkSettings={() => setNetworkOpen(true)}
           />
-          {view === 'chat' ? <ChatView state={state} sessionsVisible={sessionsVisible} /> : <TerminalView state={state} />}
+          {view === 'chat' ? (
+            <ChatView state={state} sessionsVisible={sessionsVisible} />
+          ) : (
+            <TerminalView state={state} theme={theme} />
+          )}
         </section>
       </div>
 

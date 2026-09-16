@@ -1,5 +1,5 @@
 import type { AppState } from '@shared/types'
-import { PiMark, PlusIcon, PanelIcon, RefreshIcon, GearIcon, ListIcon } from './icons'
+import { PiMark, PlusIcon, PanelIcon, RefreshIcon, GearIcon, ListIcon, MoonIcon, SunIcon } from './icons'
 
 export type AppView = 'chat' | 'terminal'
 
@@ -11,6 +11,8 @@ interface Props {
   onToggleSidebar: () => void
   sessionsVisible: boolean
   onToggleSessions: () => void
+  theme: 'light' | 'dark'
+  onToggleTheme: () => void
   onRestart: () => void
   onToggleNetwork: () => void
   onOpenNetworkSettings: () => void
@@ -24,6 +26,8 @@ export default function AppHeader({
   onToggleSidebar,
   sessionsVisible,
   onToggleSessions,
+  theme,
+  onToggleTheme,
   onRestart,
   onToggleNetwork,
   onOpenNetworkSettings
@@ -90,6 +94,13 @@ export default function AppHeader({
         >
           <span className="network-dot" data-up={state?.networkEnabled ? 'true' : 'false'} />
           {state?.networkEnabled ? 'online' : 'offline'}
+        </button>
+        <button
+          className="icon-btn"
+          title={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+          onClick={onToggleTheme}
+        >
+          {theme === 'light' ? <MoonIcon size={15} /> : <SunIcon size={15} />}
         </button>
         <button className="icon-btn" title="Network settings" onClick={onOpenNetworkSettings}>
           <GearIcon size={14} />

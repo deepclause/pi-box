@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { RpcSessionSummary } from '@shared/rpc-types'
 import { CloseIcon, EditIcon, ExternalLinkIcon, PlusIcon } from './icons'
 
@@ -25,6 +25,13 @@ export default function SessionsPanel({ sessions, onSelect, onNew, onDelete, onR
   const [editing, setEditing] = useState<string | null>(null)
   const [value, setValue] = useState('')
   const [confirming, setConfirming] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return sessions
+    return sessions.filter((session) => (session.name || session.title).toLowerCase().includes(q))
+  }, [sessions, query])
 
   const commit = (file: string): void => {
     onRename(file, value.trim())
@@ -39,9 +46,12 @@ export default function SessionsPanel({ sessions, onSelect, onNew, onDelete, onR
           <PlusIcon size={14} />
         </button>
       </header>
+      <div className="sessions-search">
+        <input value={query} placeholder="Search sessions" onChange={(event) => setQuery(event.target.value)} />
+      </div>
       <div className="sessions-list">
-        {sessions.length === 0 ? <div className="empty-hint">No sessions yet.</div> : null}
-        {sessions.map((session) => (
+        {visible.length === 0 ? <div className="empty-hint">{sessions.length === 0 ? 'No sessions yet.' : 'No matches.'}</div> : null}
+        {visible.map((session) => (
           <div className="session-item" data-active={session.active ? 'true' : 'false'} key={session.file}>
             {editing === session.file ? (
               <input

@@ -6,25 +6,43 @@ import type { AppState } from '@shared/types'
 
 interface Props {
   state: AppState | null
+  theme: 'light' | 'dark'
 }
 
-const TERMINAL_THEME = {
-  background: '#141416',
-  foreground: '#d8d8dc',
-  cursor: '#8aa0e8',
-  cursorAccent: '#141416',
-  selectionBackground: '#3a3a42',
-  black: '#1c1c1f',
-  red: '#e8757f',
-  green: '#7fc98a',
-  yellow: '#e0b060',
-  blue: '#7c9cf5',
-  magenta: '#b48ee0',
-  cyan: '#6fc3e0',
-  white: '#d8d8dc'
-}
+const TERMINAL_THEMES = {
+  dark: {
+    background: '#141416',
+    foreground: '#d8d8dc',
+    cursor: '#b9b9c2',
+    cursorAccent: '#141416',
+    selectionBackground: '#3a3a42',
+    black: '#1c1c1f',
+    red: '#e8757f',
+    green: '#7fc98a',
+    yellow: '#e0b060',
+    blue: '#7c9cf5',
+    magenta: '#b48ee0',
+    cyan: '#6fc3e0',
+    white: '#d8d8dc'
+  },
+  light: {
+    background: '#fbfbfd',
+    foreground: '#24292f',
+    cursor: '#3a3a40',
+    cursorAccent: '#fbfbfd',
+    selectionBackground: '#c8d0da',
+    black: '#24292f',
+    red: '#cf222e',
+    green: '#116329',
+    yellow: '#953800',
+    blue: '#0550ae',
+    magenta: '#8250df',
+    cyan: '#0e7490',
+    white: '#6e7781'
+  }
+} as const
 
-export default function TerminalView({ state }: Props) {
+export default function TerminalView({ state, theme }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -64,7 +82,7 @@ export default function TerminalView({ state }: Props) {
       letterSpacing: 0,
       fontWeight: 400,
       fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", Menlo, Consolas, monospace',
-      theme: TERMINAL_THEME,
+      theme: TERMINAL_THEMES[theme],
       scrollback: 10000,
       convertEol: false,
       linkHandler: {
@@ -193,6 +211,10 @@ export default function TerminalView({ state }: Props) {
       fitRef.current = null
     }
   }, [copySelection, pasteClipboard])
+
+  useEffect(() => {
+    if (termRef.current) termRef.current.options.theme = TERMINAL_THEMES[theme]
+  }, [theme])
 
   useEffect(() => {
     if (state?.status === 'ready' && termRef.current && fitRef.current) {

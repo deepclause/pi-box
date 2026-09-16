@@ -1,25 +1,82 @@
+/* Light theme is the default; dark is opt-in via <html data-theme="dark">. */
 :root {
-  /* macOS-inspired dark palette. */
-  --bg: #1e1e21;
+  color-scheme: light;
+  --bg: #ececef;
+  --bg-panel: #ffffff;
+  --chrome: #f6f6f8;
+  --surface: rgba(0, 0, 0, 0.05);
+  --surface-hover: rgba(0, 0, 0, 0.075);
+  --surface-active: rgba(0, 0, 0, 0.12);
+  --selection: rgba(0, 0, 0, 0.08);
+  --border: rgba(0, 0, 0, 0.14);
+  --border-soft: rgba(0, 0, 0, 0.08);
+  --text: #1d1d1f;
+  --text-dim: #6b6b70;
+  --text-faint: #9a9aa0;
+  --accent: #3a3a40;
+  --accent-contrast: #ffffff;
+  --accent-hover: #17171a;
+  --accent-soft: rgba(0, 0, 0, 0.08);
+  --field-bg: rgba(0, 0, 0, 0.045);
+  --field-bg-focus: #ffffff;
+  --focus-ring: rgba(0, 0, 0, 0.18);
+  --material: rgba(255, 255, 255, 0.9);
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.22);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.34);
+  --green: #1a7f37;
+  --cyan: #0e7490;
+  --amber: #b45309;
+  --red: #c0392b;
+  --code-keyword: #a626a4;
+  --code-string: #1a7f37;
+  --code-number: #b45309;
+  --code-comment: #8a8a90;
+  --code-function: #6f42c1;
+  --code-type: #0e7490;
+  --code-attr: #b45309;
+  --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --radius: 8px;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #1e1e1f;
   --bg-panel: #26262a;
   --chrome: rgba(34, 34, 38, 0.72);
   --surface: rgba(255, 255, 255, 0.06);
   --surface-hover: rgba(255, 255, 255, 0.09);
   --surface-active: rgba(255, 255, 255, 0.13);
+  --selection: rgba(255, 255, 255, 0.12);
   --border: rgba(255, 255, 255, 0.1);
   --border-soft: rgba(255, 255, 255, 0.06);
   --text: #f2f2f4;
   --text-dim: #a0a0a8;
   --text-faint: #6e6e78;
-  --accent: #0a84ff;
-  --cyan: #64d2ff;
+  --accent: #e8e8ec;
+  --accent-contrast: #1a1a1c;
+  --accent-hover: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.1);
+  --field-bg: rgba(0, 0, 0, 0.2);
+  --field-bg-focus: rgba(0, 0, 0, 0.32);
+  --focus-ring: rgba(255, 255, 255, 0.22);
+  --material: rgba(38, 38, 42, 0.92);
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.16);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
   --green: #30d158;
+  --cyan: #64d2ff;
   --amber: #ffd60a;
   --red: #ff453a;
-  --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
-  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
-  --radius: 8px;
+  --code-keyword: #d2a8ff;
+  --code-string: #7ee787;
+  --code-number: #ffab70;
+  --code-comment: #8b949e;
+  --code-function: #d2a8ff;
+  --code-type: #79c0ff;
+  --code-attr: #ffa657;
 }
 
 * {
@@ -2378,4 +2435,226 @@ body {
 *::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.28);
   background-clip: content-box;
+}
+
+/* ---------- Theme surfaces & accents ---------- */
+
+.app {
+  background: var(--bg);
+}
+
+.chat-pane,
+.terminal-pane {
+  background: var(--bg-panel);
+}
+
+.sidebar,
+.sessions-panel,
+.terminal-header {
+  background: var(--chrome);
+}
+
+/* Graphite accent for primary actions */
+.btn.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-contrast);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn.primary:active:not(:disabled) {
+  opacity: 0.88;
+}
+
+.chat-send {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.chat-send:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.chat-send.stop {
+  background: var(--red);
+  color: #ffffff;
+}
+
+.view-switch {
+  background: var(--surface);
+  border-color: var(--border-soft);
+}
+
+.view-switch-btn[data-active='true'] {
+  background: var(--surface-active);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* Fields */
+.field,
+.chat-input,
+.chat-select,
+.ui-dialog-input,
+.ui-dialog-editor {
+  background: var(--field-bg);
+}
+
+.field:focus,
+.chat-input:focus,
+.chat-select:focus,
+.ui-dialog-input:focus,
+.ui-dialog-editor:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  background: var(--field-bg-focus);
+}
+
+.switch.on {
+  background: var(--green);
+}
+
+.workspace-item.active {
+  background: var(--selection);
+}
+
+.modal,
+.ui-dialog,
+.chat-menu-pop {
+  background: var(--material);
+  box-shadow: var(--shadow);
+}
+
+.settings-row,
+.status-pill,
+.network-btn {
+  background: var(--surface);
+}
+
+.badge {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+/* Scrollbars */
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 6px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+.workspace-list::-webkit-scrollbar-thumb,
+.workspace-tree::-webkit-scrollbar-thumb,
+.sessions-list::-webkit-scrollbar-thumb,
+.chat-transcript::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* ---------- Markdown syntax highlighting ---------- */
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--code-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag {
+  color: var(--code-keyword);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-meta-string {
+  color: var(--code-string);
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--code-number);
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-section,
+.hljs-name {
+  color: var(--code-function);
+}
+
+.hljs-type,
+.hljs-built_in,
+.hljs-class .hljs-title,
+.hljs-title.class_ {
+  color: var(--code-type);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-property {
+  color: var(--code-attr);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 600;
+}
+
+/* ---------- Session search + branch labels ---------- */
+
+.sessions-search {
+  padding: 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.sessions-search input {
+  width: 100%;
+  background: var(--field-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 5px 8px;
+  outline: none;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.sessions-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.branch-filter {
+  margin-bottom: 10px;
+  align-self: flex-start;
+}
+
+.branch-label {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  flex-shrink: 0;
 }
