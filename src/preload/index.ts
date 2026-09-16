@@ -10,7 +10,8 @@ import type {
   RpcSessionStats,
   RpcSessionSummary,
   RpcState,
-  RpcStreamingBehavior
+  RpcStreamingBehavior,
+  RpcTree
 } from '../shared/rpc-types'
 
 export interface PiBoxRpcApi {
@@ -36,6 +37,8 @@ export interface PiBoxRpcApi {
   deleteSession(file: string): Promise<RpcState>
   exportHtml(outputPath?: string): Promise<{ path: string }>
   getForkMessages(): Promise<RpcForkMessage[]>
+  getTree(): Promise<RpcTree>
+  reconnect(): Promise<RpcState>
   fork(entryId: string): Promise<{ state: RpcState; text: string }>
   clone(): Promise<RpcState>
   respondExtensionUi(response: RpcExtensionUIResponse): void
@@ -130,6 +133,8 @@ const api: PiBoxApi = {
     deleteSession: (file) => ipcRenderer.invoke('pibox:rpc:deleteSession', file),
     exportHtml: (outputPath) => ipcRenderer.invoke('pibox:rpc:exportHtml', outputPath),
     getForkMessages: () => ipcRenderer.invoke('pibox:rpc:getForkMessages'),
+    getTree: () => ipcRenderer.invoke('pibox:rpc:getTree'),
+    reconnect: () => ipcRenderer.invoke('pibox:rpc:reconnect'),
     fork: (entryId) => ipcRenderer.invoke('pibox:rpc:fork', entryId),
     clone: () => ipcRenderer.invoke('pibox:rpc:clone'),
     respondExtensionUi: (response) => ipcRenderer.send('pibox:rpc:extensionUi', response),

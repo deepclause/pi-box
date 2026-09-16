@@ -12,7 +12,9 @@ import type {
   RpcSessionStats,
   RpcSessionSummary,
   RpcState,
-  RpcStreamingBehavior
+  RpcStreamingBehavior,
+  RpcTree,
+  RpcTreeNode
 } from '../shared/rpc-types'
 import { PI_RPC_GUEST_PORT } from '../shared/rpc-types'
 import type { VmManager } from './vm'
@@ -450,6 +452,14 @@ export class RpcSessionManager extends EventEmitter {
     if (images?.length) command.images = images
     const response = await this.connection!.send(command)
     if (!response.success) throw new Error(response.error ?? 'follow_up rejected')
+  }
+
+  async getTree(): Promise<RpcTree> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'get_tree' })
+    if (!response.success) throw new Error(response.error ?? 'get_tree failed')
+    const data = (response.data ?? {}) as { tree?: RpcTreeNode[]; leafId?: string | null }
+    return { tree: data.tree ?? [], leafId: data.leafId ?? null }
   }
 
   async getForkMessages(): Promise<RpcForkMessage[]> {

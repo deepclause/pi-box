@@ -100,6 +100,26 @@ export interface RpcForkMessage {
   text: string
 }
 
+export interface RpcTreeEntry {
+  type: string
+  id: string
+  parentId?: string | null
+  timestamp?: string | number
+  message?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+export interface RpcTreeNode {
+  entry: RpcTreeEntry
+  children: RpcTreeNode[]
+  label?: string
+}
+
+export interface RpcTree {
+  tree: RpcTreeNode[]
+  leafId: string | null
+}
+
 export interface RpcUiDialog {
   id: string
   method: 'select' | 'confirm' | 'input' | 'editor'

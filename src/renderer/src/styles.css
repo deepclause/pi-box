@@ -1847,3 +1847,87 @@ body {
 .chat-fork-menu .chat-command-desc {
   white-space: normal;
 }
+
+/* ---------- Branch tree ---------- */
+
+.branch-dialog {
+  width: min(640px, 92vw);
+}
+
+.branch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.branch-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.branch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.branch-row:hover {
+  background: var(--surface-hover);
+}
+
+.branch-row[data-active='true'] {
+  background: var(--surface-active);
+}
+
+.branch-kind {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.branch-kind[data-kind='user'] {
+  color: var(--accent);
+  border-color: rgba(122, 162, 247, 0.4);
+}
+
+.branch-kind[data-kind='assistant'] {
+  color: var(--green);
+  border-color: rgba(158, 206, 106, 0.4);
+}
+
+.branch-kind[data-kind='toolResult'] {
+  color: var(--cyan);
+}
+
+.branch-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.branch-fork {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 10px;
+  padding: 1px 8px;
+  cursor: pointer;
+}
+
+.branch-fork:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}

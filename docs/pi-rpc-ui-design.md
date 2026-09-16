@@ -775,10 +775,11 @@ image attachments are still open (Phase 4).
 
 **Phase 4 — polish / power features. ◑ partial.**
 Done: inline rename (`set_session_name`), `export_html`, Cmd/Ctrl+N, image
-attachments (paste/drop/picker), fork-from-message and clone, and a README
-refresh. Still open: `get_tree` branch navigator, terminal tabs via
-`tmux list-windows`, explicit reconnect, `maxLiveSessions`, per-session
-settings, and the rest of the TUI keybindings.
+attachments (paste/drop/picker), fork-from-message and clone, a read-only
+`get_tree` branch viewer with fork-from-node, Esc to clear the queue and abort,
+reconnect, and a README refresh. Still open: terminal tabs via
+`tmux list-windows`, `maxLiveSessions`, per-session settings, and the rest of
+the TUI keybindings.
 
 ---
 

@@ -109,6 +109,14 @@ export function registerIpc(ctx: IpcContext): void {
 
   ipcMain.handle('pibox:rpc:getForkMessages', async () => rpc.getForkMessages())
 
+  ipcMain.handle('pibox:rpc:getTree', async () => rpc.getTree())
+
+  ipcMain.handle('pibox:rpc:reconnect', async () => {
+    await rpc.teardown()
+    await rpc.ensureSession()
+    return rpc.state
+  })
+
   ipcMain.handle('pibox:rpc:fork', async (_event, entryId: string) => {
     const text = await rpc.fork(entryId)
     return { state: rpc.state, text }

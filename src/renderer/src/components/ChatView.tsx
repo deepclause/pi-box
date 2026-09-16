@@ -10,6 +10,7 @@ import type {
   RpcSessionStats,
   RpcSessionSummary,
   RpcState,
+  RpcTree,
   RpcUiDialog
 } from '@shared/rpc-types'
 import {
@@ -23,6 +24,7 @@ import {
 import Markdown from './Markdown'
 import SessionsPanel from './SessionsPanel'
 import ExtensionUi from './ExtensionUi'
+import BranchTree from './BranchTree'
 import { PaperclipIcon, SendIcon, StopIcon } from './icons'
 
 interface Attachment {
@@ -184,6 +186,7 @@ export default function ChatView({ state }: { state: AppState | null }) {
   const [widgetLines, setWidgetLines] = useState<string[]>([])
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [forkMessages, setForkMessages] = useState<RpcForkMessage[] | null>(null)
+  const [tree, setTree] = useState<RpcTree | null>(null)
   const [commandIndex, setCommandIndex] = useState(0)
   const transcriptRef = useRef<HTMLDivElement | null>(null)
   const openingRef = useRef(false)
@@ -479,6 +482,25 @@ export default function ChatView({ state }: { state: AppState | null }) {
     }
   }, [reloadTranscript, reloadSessions])
 
+  const openTree = useCallback(async () => {
+    try {
+      setTree(await window.pibox.rpc.getTree())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [])
+
+  const reconnect = useCallback(async () => {
+    setError(null)
+    try {
+      setRpcState(await window.pibox.rpc.reconnect())
+      await reloadTranscript()
+      await reloadSessions()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [reloadTranscript, reloadSessions])
+
   // Cmd/Ctrl+N starts a fresh session.
   useEffect(() => {
     const onKey = (event: globalThis.KeyboardEvent): void => {
@@ -521,6 +543,30 @@ export default function ChatView({ state }: { state: AppState | null }) {
   }, [])
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (event.key === 'Escape') {
+      if (forkMessages) {
+        setForkMessages(null)
+        return
+      }
+      if (tree) {
+        setTree(null)
+        return
+      }
+      if (rpcState.isStreaming) {
+        event.preventDefault()
+        void (async () => {
+          try {
+            const queued = await window.pibox.rpc.clearQueue()
+            const restored = [...queued.steering, ...queued.followUp].join('\n')
+            if (restored) setInput((prev) => (prev ? `${prev}\n${restored}` : restored))
+            setRpcState(await window.pibox.rpc.abort())
+          } catch (err) {
+            setError(err instanceof Error ? err.message : String(err))
+          }
+        })()
+      }
+      return
+    }
     if (commandMatches.length > 0) {
       if (event.key === 'ArrowDown') {
         event.preventDefault()
@@ -637,6 +683,12 @@ export default function ChatView({ state }: { state: AppState | null }) {
               </button>
               <button className="chat-action" title="Clone this session" onClick={() => void cloneSession()} disabled={rpcState.status !== 'ready'}>
                 Clone
+              </button>
+              <button className="chat-action" title="View session branches" onClick={() => void openTree()} disabled={rpcState.status !== 'ready'}>
+                Branches
+              </button>
+              <button className="chat-action" title="Reconnect to pi" onClick={() => void reconnect()} disabled={state?.status !== 'ready'}>
+                Reconnect
               </button>
               <UsageBar stats={rpcState.stats} />
               {rpcState.isCompacting ? <span className="chat-streaming">compacting</span> : null}
@@ -785,6 +837,18 @@ export default function ChatView({ state }: { state: AppState | null }) {
       ) : null}
 
       {dialogs.length ? <ExtensionUi dialog={dialogs[0]} onRespond={respondDialog} /> : null}
+
+      {tree ? (
+        <BranchTree
+          tree={tree.tree}
+          leafId={tree.leafId}
+          onFork={(entryId) => {
+            setTree(null)
+            void doFork(entryId)
+          }}
+          onClose={() => setTree(null)}
+        />
+      ) : null}
     </section>
   )
 }
