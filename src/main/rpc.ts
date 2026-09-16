@@ -5,8 +5,10 @@ import path from 'node:path'
 import type {
   RpcCommand,
   RpcEvent,
+  RpcExtensionUIResponse,
   RpcModelInfo,
   RpcSessionStats,
+  RpcSessionSummary,
   RpcState,
   RpcStreamingBehavior
 } from '../shared/rpc-types'
@@ -20,6 +22,62 @@ const START_TIMEOUT_MS = 120_000
 
 function log(message: string, ...rest: unknown[]): void {
   console.log(`[rpc ${new Date().toISOString().slice(11, 23)}] ${message}`, ...rest)
+}
+
+const GUEST_SESSIONS_DIR = '/workspace/.pi/sessions'
+
+function extractText(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content
+    .map((block) =>
+      block && typeof block === 'object' && (block as { type?: string }).type === 'text'
+        ? String((block as { text?: string }).text ?? '')
+        : ''
+    )
+    .filter(Boolean)
+    .join(' ')
+}
+
+/** Summarize a session JSONL for the session list. */
+function summarizeSession(hostFile: string, basename: string): RpcSessionSummary {
+  let updatedAt = 0
+  try {
+    updatedAt = fs.statSync(hostFile).mtimeMs
+  } catch {
+    // ignore
+  }
+  const summary: RpcSessionSummary = {
+    id: path.basename(basename, '.jsonl'),
+    file: `${GUEST_SESSIONS_DIR}/${basename}`,
+    title: 'Empty session',
+    updatedAt,
+    active: false
+  }
+  try {
+    const content = fs.readFileSync(hostFile, 'utf8')
+    for (const line of content.split('\n')) {
+      if (!line) continue
+      let entry: Record<string, unknown>
+      try {
+        entry = JSON.parse(line) as Record<string, unknown>
+      } catch {
+        continue
+      }
+      if (entry.type === 'session' && typeof entry.id === 'string') summary.id = entry.id
+      if (typeof entry.name === 'string' && !summary.name) summary.name = entry.name
+      if (entry.type === 'message' && summary.title === 'Empty session') {
+        const message = entry.message as Record<string, unknown> | undefined
+        if (message?.role === 'user') {
+          const text = extractText(message.content).trim()
+          if (text) summary.title = text.slice(0, 90)
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return summary
 }
 
 function normalizeStats(data: unknown): RpcSessionStats {
@@ -138,6 +196,12 @@ class RpcConnection extends EventEmitter {
       this.pending.set(id, { resolve, reject, timer })
       socket.write(JSON.stringify(payload) + '\n')
     })
+  }
+
+  /** Write a JSON record without tracking a response (extension UI, etc.). */
+  write(record: Record<string, unknown>): void {
+    if (!this.socket || this.closed) return
+    this.socket.write(JSON.stringify(record) + '\n')
   }
 
   close(): void {
@@ -462,6 +526,90 @@ export class RpcSessionManager extends EventEmitter {
         model: { provider: data.model.provider ?? '', id: data.model.id ?? '', name: data.model.name }
       })
     }
+  }
+
+  /** List the workspace's session files, most recently updated first. */
+  async listSessions(): Promise<RpcSessionSummary[]> {
+    const workspace = this.store.getActive()
+    if (!workspace) return []
+    const dir = path.join(workspace.path, '.pi', 'sessions')
+    let files: string[] = []
+    try {
+      files = fs.readdirSync(dir).filter((name) => name.endsWith('.jsonl'))
+    } catch {
+      return []
+    }
+    const activeFile = this.stateValue.sessionFile
+    const summaries = files.map((name) => summarizeSession(path.join(dir, name), name))
+    summaries.sort((a, b) => b.updatedAt - a.updatedAt)
+    // A brand-new session has no file on disk until the first message, so add a
+    // synthetic entry for the live session when it is not in the list yet.
+    if (activeFile && !summaries.some((summary) => summary.file === activeFile)) {
+      summaries.unshift({
+        id: this.stateValue.sessionId ?? 'current',
+        file: activeFile,
+        name: this.stateValue.sessionName,
+        title: 'New session',
+        updatedAt: Date.now(),
+        active: true
+      })
+    }
+    for (const summary of summaries) summary.active = summary.file === activeFile
+    return summaries
+  }
+
+  async switchSession(file: string): Promise<RpcState> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'switch_session', sessionPath: file })
+    if (!response.success) throw new Error(response.error ?? 'switch_session failed')
+    if ((response.data as { cancelled?: boolean } | undefined)?.cancelled) {
+      throw new Error('Session switch was cancelled')
+    }
+    await this.refreshState()
+    return this.state
+  }
+
+  async newSession(): Promise<RpcState> {
+    await this.ensureSession()
+    const response = await this.connection!.send({ type: 'new_session' })
+    if (!response.success) throw new Error(response.error ?? 'new_session failed')
+    if ((response.data as { cancelled?: boolean } | undefined)?.cancelled) {
+      throw new Error('New session was cancelled')
+    }
+    await this.refreshState()
+    return this.state
+  }
+
+  /** Delete a session file, moving off it first if it is the live session. */
+  async deleteSession(file: string): Promise<void> {
+    const workspace = this.store.getActive()
+    if (!workspace) return
+    if (this.stateValue.sessionFile === file) await this.newSession().catch(() => undefined)
+    fs.rmSync(path.join(workspace.path, '.pi', 'sessions', path.basename(file)), { force: true })
+  }
+
+  /** Reply to a blocking extension UI dialog (no response is expected). */
+  respondExtensionUi(response: RpcExtensionUIResponse): void {
+    this.connection?.write(response as unknown as Record<string, unknown>)
+  }
+
+  private async refreshState(): Promise<void> {
+    if (!this.connection?.isOpen()) return
+    const response = await this.connection.send({ type: 'get_state' })
+    if (!response.success) return
+    const data = (response.data ?? {}) as Record<string, unknown>
+    const model = data.model as { provider?: string; id?: string; name?: string } | null | undefined
+    this.setState({
+      status: 'ready',
+      sessionId: (data.sessionId as string) ?? null,
+      sessionName: data.sessionName as string | undefined,
+      sessionFile: data.sessionFile as string | undefined,
+      model: model ? { provider: model.provider ?? '', id: model.id ?? '', name: model.name } : null,
+      thinkingLevel: (data.thinkingLevel as string) ?? null,
+      isStreaming: Boolean(data.isStreaming),
+      isCompacting: Boolean(data.isCompacting)
+    })
+    await this.refreshStats().catch(() => undefined)
   }
 
   /** Close the live session (called before the VM restarts or the app quits). */

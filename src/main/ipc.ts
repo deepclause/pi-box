@@ -1,7 +1,7 @@
 import { clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
 import path from 'node:path'
 import type { AppState, FirewallRule, OpenResult } from '../shared/types'
-import type { RpcStreamingBehavior } from '../shared/rpc-types'
+import type { RpcExtensionUIResponse, RpcStreamingBehavior } from '../shared/rpc-types'
 import type { RpcSessionManager } from './rpc'
 import type { VmManager } from './vm'
 import type { WorkspaceStore } from './workspaces'
@@ -140,6 +140,21 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle('pibox:rpc:cycleModel', async () => {
     await rpc.cycleModel()
     return rpc.state
+  })
+
+  ipcMain.handle('pibox:rpc:listSessions', async () => rpc.listSessions())
+
+  ipcMain.handle('pibox:rpc:newSession', async () => rpc.newSession())
+
+  ipcMain.handle('pibox:rpc:switchSession', async (_event, file: string) => rpc.switchSession(file))
+
+  ipcMain.handle('pibox:rpc:deleteSession', async (_event, file: string) => {
+    await rpc.deleteSession(file)
+    return rpc.state
+  })
+
+  ipcMain.on('pibox:rpc:extensionUi', (_event, response: RpcExtensionUIResponse) => {
+    rpc.respondExtensionUi(response)
   })
 
   ipcMain.handle('pibox:addPortForward', async (_event, config: { hostPort: number; guestPort: number; guestHost?: string }) => {

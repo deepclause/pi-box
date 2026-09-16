@@ -63,3 +63,36 @@ export interface RpcCommand {
   description?: string
   source: 'extension' | 'prompt' | 'skill'
 }
+
+/** A session file discovered in the workspace's `.pi/sessions` directory. */
+export interface RpcSessionSummary {
+  /** Session id from the file header. */
+  id: string
+  /** Guest path (used by `switch_session` / `delete`). */
+  file: string
+  /** Display name if one was set. */
+  name?: string
+  /** First user message, used as a preview. */
+  title: string
+  /** Last modified time (ms). */
+  updatedAt: number
+  /** True for the session the live pi process currently has loaded. */
+  active: boolean
+}
+
+/** Response to a blocking `extension_ui_request` dialog. */
+export type RpcExtensionUIResponse =
+  | { type: 'extension_ui_response'; id: string; value: string }
+  | { type: 'extension_ui_response'; id: string; confirmed: boolean }
+  | { type: 'extension_ui_response'; id: string; cancelled: true }
+
+/** A pending dialog requested by an extension. */
+export interface RpcUiDialog {
+  id: string
+  method: 'select' | 'confirm' | 'input' | 'editor'
+  title: string
+  message?: string
+  options?: string[]
+  placeholder?: string
+  prefill?: string
+}

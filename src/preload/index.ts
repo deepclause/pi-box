@@ -3,8 +3,10 @@ import type { AppState, FileNode, FirewallRule, OpenResult } from '../shared/typ
 import type {
   RpcCommand,
   RpcEvent,
+  RpcExtensionUIResponse,
   RpcModelInfo,
   RpcSessionStats,
+  RpcSessionSummary,
   RpcState,
   RpcStreamingBehavior
 } from '../shared/rpc-types'
@@ -26,6 +28,11 @@ export interface PiBoxRpcApi {
   getAvailableThinkingLevels(): Promise<string[]>
   getCommands(): Promise<RpcCommand[]>
   setSessionName(name: string): Promise<RpcState>
+  listSessions(): Promise<RpcSessionSummary[]>
+  newSession(): Promise<RpcState>
+  switchSession(file: string): Promise<RpcState>
+  deleteSession(file: string): Promise<RpcState>
+  respondExtensionUi(response: RpcExtensionUIResponse): void
   onEvent(cb: (event: RpcEvent) => void): () => void
   onState(cb: (state: RpcState) => void): () => void
 }
@@ -111,6 +118,11 @@ const api: PiBoxApi = {
     getAvailableThinkingLevels: () => ipcRenderer.invoke('pibox:rpc:getAvailableThinkingLevels'),
     getCommands: () => ipcRenderer.invoke('pibox:rpc:getCommands'),
     setSessionName: (name) => ipcRenderer.invoke('pibox:rpc:setSessionName', name),
+    listSessions: () => ipcRenderer.invoke('pibox:rpc:listSessions'),
+    newSession: () => ipcRenderer.invoke('pibox:rpc:newSession'),
+    switchSession: (file) => ipcRenderer.invoke('pibox:rpc:switchSession', file),
+    deleteSession: (file) => ipcRenderer.invoke('pibox:rpc:deleteSession', file),
+    respondExtensionUi: (response) => ipcRenderer.send('pibox:rpc:extensionUi', response),
 
     onEvent: (cb) => {
       const listener = (_event: Electron.IpcRendererEvent, payload: RpcEvent): void => cb(payload)

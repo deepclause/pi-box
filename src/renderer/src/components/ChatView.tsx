@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { AppState } from '@shared/types'
-import type { RpcCommand, RpcEvent, RpcModelInfo, RpcSessionStats, RpcState } from '@shared/rpc-types'
+import type {
+  RpcCommand,
+  RpcEvent,
+  RpcExtensionUIResponse,
+  RpcModelInfo,
+  RpcSessionStats,
+  RpcSessionSummary,
+  RpcState,
+  RpcUiDialog
+} from '@shared/rpc-types'
 import {
   makeUserMessage,
   messagesFromEntries,
@@ -10,6 +19,8 @@ import {
   type ChatState
 } from '../lib/chat'
 import Markdown from './Markdown'
+import SessionsPanel from './SessionsPanel'
+import ExtensionUi from './ExtensionUi'
 import { SendIcon, StopIcon } from './icons'
 
 const EMPTY_STATE: ChatState = { messages: [], activeAssistantId: null }
@@ -28,6 +39,12 @@ interface Notice {
   text: string
 }
 
+interface Toast {
+  id: number
+  message: string
+  kind: string
+}
+
 function formatTokens(value: number | null | undefined): string {
   if (value == null) return '—'
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
@@ -42,11 +59,10 @@ function formatCost(value: number | undefined): string {
   return `$${value.toFixed(2)}`
 }
 
-/** Human-readable system notice for a transient session event, if any. */
 function noticeFromEvent(event: RpcEvent): string | null {
   switch (event.type) {
     case 'compaction_start':
-      return `Compacting context…`
+      return 'Compacting context…'
     case 'compaction_end': {
       if (event.aborted) return 'Compaction aborted'
       const result = event.result as { tokensBefore?: number; estimatedTokensAfter?: number } | null
@@ -65,6 +81,20 @@ function noticeFromEvent(event: RpcEvent): string | null {
       return `Extension error: ${String(event.error ?? '')}`
     default:
       return null
+  }
+}
+
+function dialogFromEvent(event: RpcEvent): RpcUiDialog | null {
+  const method = String(event.method ?? '')
+  if (method !== 'select' && method !== 'confirm' && method !== 'input' && method !== 'editor') return null
+  return {
+    id: String(event.id ?? ''),
+    method,
+    title: String(event.title ?? ''),
+    message: event.message as string | undefined,
+    options: event.options as string[] | undefined,
+    placeholder: event.placeholder as string | undefined,
+    prefill: event.prefill as string | undefined
   }
 }
 
@@ -135,11 +165,37 @@ export default function ChatView({ state }: { state: AppState | null }) {
   const [commands, setCommands] = useState<RpcCommand[]>([])
   const [queue, setQueue] = useState<{ steering: string[]; followUp: string[] }>({ steering: [], followUp: [] })
   const [notices, setNotices] = useState<Notice[]>([])
+  const [sessions, setSessions] = useState<RpcSessionSummary[]>([])
+  const [dialogs, setDialogs] = useState<RpcUiDialog[]>([])
+  const [toasts, setToasts] = useState<Toast[]>([])
+  const [statuses, setStatuses] = useState<Record<string, string>>({})
+  const [widgetLines, setWidgetLines] = useState<string[]>([])
   const [commandIndex, setCommandIndex] = useState(0)
   const transcriptRef = useRef<HTMLDivElement | null>(null)
   const openingRef = useRef(false)
   const retryRef = useRef(0)
   const noticeSeq = useRef(0)
+  const toastSeq = useRef(0)
+
+  const reloadSessions = useCallback(async () => {
+    try {
+      setSessions(await window.pibox.rpc.listSessions())
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const reloadTranscript = useCallback(async () => {
+    try {
+      const entries = await window.pibox.rpc.getEntries()
+      setChat({ messages: messagesFromEntries(entries), activeAssistantId: null })
+      setNotices([])
+      setQueue({ steering: [], followUp: [] })
+      setDialogs([])
+    } catch {
+      /* ignore */
+    }
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -157,14 +213,39 @@ export default function ChatView({ state }: { state: AppState | null }) {
       }
       const notice = noticeFromEvent(event)
       if (notice) setNotices((prev) => [...prev, { id: ++noticeSeq.current, text: notice }].slice(-30))
+      if (event.type === 'agent_settled') void reloadSessions()
+
+      if (event.type === 'extension_ui_request') {
+        const method = String(event.method ?? '')
+        const dialog = dialogFromEvent(event)
+        if (dialog) {
+          setDialogs((prev) => [...prev, dialog])
+        } else if (method === 'notify') {
+          const toast: Toast = { id: ++toastSeq.current, message: String(event.message ?? ''), kind: String(event.notifyType ?? 'info') }
+          setToasts((prev) => [...prev, toast])
+          setTimeout(() => setToasts((prev) => prev.filter((item) => item.id !== toast.id)), 6000)
+        } else if (method === 'setStatus') {
+          const key = String(event.statusKey ?? '')
+          setStatuses((prev) => {
+            const next = { ...prev }
+            if (event.statusText == null) delete next[key]
+            else next[key] = String(event.statusText)
+            return next
+          })
+        } else if (method === 'setWidget') {
+          setWidgetLines(Array.isArray(event.widgetLines) ? (event.widgetLines as string[]) : [])
+        } else if (method === 'set_editor_text') {
+          setInput(String(event.text ?? ''))
+        } else if (method === 'setTitle') {
+          document.title = String(event.title ?? 'pi-box')
+        }
+      }
     })
     window.pibox.rpc
       .getState()
       .then(async (next) => {
         if (!mounted) return
         setRpcState(next)
-        // A session may already be live (e.g. switching back from the terminal
-        // view); reload its history so the transcript is not empty.
         if (next.status === 'ready') {
           try {
             const entries = await window.pibox.rpc.getEntries()
@@ -172,6 +253,7 @@ export default function ChatView({ state }: { state: AppState | null }) {
           } catch {
             /* ignore */
           }
+          if (mounted) void reloadSessions()
         }
       })
       .catch(() => {
@@ -182,7 +264,7 @@ export default function ChatView({ state }: { state: AppState | null }) {
       unsubscribeState()
       unsubscribeEvent()
     }
-  }, [])
+  }, [reloadSessions])
 
   const open = useCallback(async () => {
     if (openingRef.current) return
@@ -191,21 +273,19 @@ export default function ChatView({ state }: { state: AppState | null }) {
     try {
       const next = await window.pibox.rpc.open()
       setRpcState(next)
-      const entries = await window.pibox.rpc.getEntries()
-      setChat({ messages: messagesFromEntries(entries), activeAssistantId: null })
+      await reloadTranscript()
+      await reloadSessions()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       openingRef.current = false
     }
-  }, [])
+  }, [reloadTranscript, reloadSessions])
 
   useEffect(() => {
     if (rpcState.status === 'ready') retryRef.current = 0
   }, [rpcState.status])
 
-  // Auto-open once the VM is ready (a shell, which is fast now); retry a few
-  // times if startup fails so a transient error does not leave it stuck.
   useEffect(() => {
     if (state?.status !== 'ready' || !state?.activeWorkspaceId) return
     if (rpcState.status === 'starting' || rpcState.status === 'ready') return
@@ -218,7 +298,6 @@ export default function ChatView({ state }: { state: AppState | null }) {
     void open()
   }, [state?.status, state?.activeWorkspaceId, rpcState.status, open])
 
-  // Load picker/command metadata once a session is ready.
   useEffect(() => {
     if (rpcState.status !== 'ready') return
     void Promise.all([
@@ -257,6 +336,54 @@ export default function ChatView({ state }: { state: AppState | null }) {
       .abort()
       .then(setRpcState)
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+  }, [])
+
+  const selectSession = useCallback(
+    async (file: string) => {
+      if (rpcState.status !== 'ready') return
+      setError(null)
+      try {
+        setRpcState(await window.pibox.rpc.switchSession(file))
+        await reloadTranscript()
+        await reloadSessions()
+        setInput('')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
+    },
+    [rpcState.status, reloadTranscript, reloadSessions]
+  )
+
+  const newSession = useCallback(async () => {
+    if (rpcState.status !== 'ready') return
+    setError(null)
+    try {
+      setRpcState(await window.pibox.rpc.newSession())
+      await reloadTranscript()
+      await reloadSessions()
+      setInput('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [rpcState.status, reloadTranscript, reloadSessions])
+
+  const deleteSession = useCallback(
+    async (file: string) => {
+      setError(null)
+      try {
+        setRpcState(await window.pibox.rpc.deleteSession(file))
+        await reloadTranscript()
+        await reloadSessions()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
+    },
+    [reloadTranscript, reloadSessions]
+  )
+
+  const respondDialog = useCallback((response: RpcExtensionUIResponse) => {
+    window.pibox.rpc.respondExtensionUi(response)
+    setDialogs((prev) => prev.slice(1))
   }, [])
 
   const selectModel = useCallback(async (value: string) => {
@@ -320,124 +447,159 @@ export default function ChatView({ state }: { state: AppState | null }) {
 
   return (
     <section className="chat-pane">
-      <div className="chat-transcript" ref={transcriptRef}>
-        {busy ? (
-          <div className="chat-starting">
-            <div className="chat-starting-card">
-              <div className="chat-spinner" />
-              <div className="chat-starting-title">Starting pi…</div>
-              <div className="chat-starting-sub">pi runs inside the VM, so first launch takes ~30 seconds while it boots.</div>
-            </div>
-          </div>
-        ) : chat.messages.length === 0 ? (
-          <div className="chat-empty">
-            {notReady ? 'Waiting for the VM to become ready…' : rpcState.status === 'error' ? 'Could not start pi.' : 'Ask pi anything.'}
-          </div>
-        ) : (
-          chat.messages.map((message) => <Message key={message.id} message={message} />)
-        )}
-        {!busy
-          ? notices.map((notice) => (
-              <div className="chat-notice" key={notice.id}>
-                {notice.text}
+      <div className="chat-body">
+        <SessionsPanel
+          sessions={sessions}
+          onSelect={(file) => void selectSession(file)}
+          onNew={() => void newSession()}
+          onDelete={(file) => void deleteSession(file)}
+        />
+        <div className="chat-main">
+          <div className="chat-transcript" ref={transcriptRef}>
+            {busy ? (
+              <div className="chat-starting">
+                <div className="chat-starting-card">
+                  <div className="chat-spinner" />
+                  <div className="chat-starting-title">Starting pi…</div>
+                  <div className="chat-starting-sub">pi runs inside the VM, so first launch takes ~30 seconds while it boots.</div>
+                </div>
               </div>
-            ))
-          : null}
-      </div>
-
-      {error ? (
-        <div className="chat-error-bar">
-          {error}
-          <button className="text-btn" onClick={() => void open()} disabled={notReady}>
-            Retry
-          </button>
-        </div>
-      ) : null}
-
-      <div className="chat-composer">
-        <div className="chat-composer-meta">
-          <select className="chat-select" value={modelKey} onChange={(event) => void selectModel(event.target.value)} disabled={rpcState.status !== 'ready'}>
-            {!knownModel && modelKey ? <option value={modelKey}>{rpcState.model?.id}</option> : null}
-            {models.length === 0 && !modelKey ? <option value="">no model</option> : null}
-            {models.map((model) => (
-              <option key={`${model.provider}/${model.id}`} value={`${model.provider}/${model.id}`}>
-                {model.id}
-              </option>
-            ))}
-          </select>
-          <select
-            className="chat-select"
-            value={rpcState.thinkingLevel ?? 'off'}
-            onChange={(event) => void selectThinking(event.target.value)}
-            disabled={rpcState.status !== 'ready'}
-          >
-            {levels.map((level) => (
-              <option key={level} value={level}>
-                {level}
-              </option>
-            ))}
-          </select>
-          <UsageBar stats={rpcState.stats} />
-          {rpcState.isCompacting ? <span className="chat-streaming">compacting</span> : null}
-          {rpcState.isStreaming ? <span className="chat-streaming">streaming</span> : null}
-        </div>
-
-        {queue.steering.length || queue.followUp.length ? (
-          <div className="chat-queue">
-            {queue.steering.map((text, index) => (
-              <span className="chat-queue-chip" data-kind="steer" key={`s${index}`} title="Queued steering message">
-                {text}
-              </span>
-            ))}
-            {queue.followUp.map((text, index) => (
-              <span className="chat-queue-chip" data-kind="follow" key={`f${index}`} title="Queued follow-up message">
-                {text}
-              </span>
-            ))}
+            ) : chat.messages.length === 0 ? (
+              <div className="chat-empty">
+                {notReady ? 'Waiting for the VM to become ready…' : rpcState.status === 'error' ? 'Could not start pi.' : 'Ask pi anything.'}
+              </div>
+            ) : (
+              chat.messages.map((message) => <Message key={message.id} message={message} />)
+            )}
+            {!busy
+              ? notices.map((notice) => (
+                  <div className="chat-notice" key={notice.id}>
+                    {notice.text}
+                  </div>
+                ))
+              : null}
           </div>
-        ) : null}
 
-        <div className="chat-composer-row">
-          {commandMatches.length > 0 ? (
-            <div className="chat-commands">
-              {commandMatches.map((command, index) => (
-                <button
-                  key={command.name}
-                  className="chat-command"
-                  data-active={index === commandIndex ? 'true' : 'false'}
-                  onMouseEnter={() => setCommandIndex(index)}
-                  onClick={() => acceptCommand(command)}
-                >
-                  <span className="chat-command-name">/{command.name}</span>
-                  <span className="chat-command-source">{command.source}</span>
-                  {command.description ? <span className="chat-command-desc">{command.description}</span> : null}
-                </button>
+          {error ? (
+            <div className="chat-error-bar">
+              {error}
+              <button className="text-btn" onClick={() => void open()} disabled={notReady}>
+                Retry
+              </button>
+            </div>
+          ) : null}
+
+          {widgetLines.length ? (
+            <div className="chat-widget">
+              {widgetLines.map((line, index) => (
+                <div key={index}>{line}</div>
               ))}
             </div>
           ) : null}
-          <textarea
-            className="chat-input"
-            placeholder={rpcState.isStreaming ? 'Steer pi…  (Enter to send)' : 'Message pi…  (Enter to send, Shift+Enter for newline, / for commands)'}
-            value={input}
-            onChange={(event) => {
-              setInput(event.target.value)
-              setCommandIndex(0)
-            }}
-            onKeyDown={onKeyDown}
-            rows={3}
-            disabled={rpcState.status !== 'ready'}
-          />
-          {rpcState.isStreaming ? (
-            <button className="chat-send stop" title="Stop" onClick={stop}>
-              <StopIcon size={15} />
-            </button>
-          ) : (
-            <button className="chat-send" title="Send" onClick={() => void send()} disabled={!input.trim() || rpcState.status !== 'ready'}>
-              <SendIcon size={15} />
-            </button>
-          )}
+
+          <div className="chat-composer">
+            <div className="chat-composer-meta">
+              <select className="chat-select" value={modelKey} onChange={(event) => void selectModel(event.target.value)} disabled={rpcState.status !== 'ready'}>
+                {!knownModel && modelKey ? <option value={modelKey}>{rpcState.model?.id}</option> : null}
+                {models.length === 0 && !modelKey ? <option value="">no model</option> : null}
+                {models.map((model) => (
+                  <option key={`${model.provider}/${model.id}`} value={`${model.provider}/${model.id}`}>
+                    {model.id}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="chat-select"
+                value={rpcState.thinkingLevel ?? 'off'}
+                onChange={(event) => void selectThinking(event.target.value)}
+                disabled={rpcState.status !== 'ready'}
+              >
+                {levels.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </select>
+              {Object.entries(statuses).map(([key, value]) => (
+                <span className="chat-status" key={key}>
+                  {value}
+                </span>
+              ))}
+              <UsageBar stats={rpcState.stats} />
+              {rpcState.isCompacting ? <span className="chat-streaming">compacting</span> : null}
+              {rpcState.isStreaming ? <span className="chat-streaming">streaming</span> : null}
+            </div>
+
+            {queue.steering.length || queue.followUp.length ? (
+              <div className="chat-queue">
+                {queue.steering.map((text, index) => (
+                  <span className="chat-queue-chip" data-kind="steer" key={`s${index}`} title="Queued steering message">
+                    {text}
+                  </span>
+                ))}
+                {queue.followUp.map((text, index) => (
+                  <span className="chat-queue-chip" data-kind="follow" key={`f${index}`} title="Queued follow-up message">
+                    {text}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="chat-composer-row">
+              {commandMatches.length > 0 ? (
+                <div className="chat-commands">
+                  {commandMatches.map((command, index) => (
+                    <button
+                      key={command.name}
+                      className="chat-command"
+                      data-active={index === commandIndex ? 'true' : 'false'}
+                      onMouseEnter={() => setCommandIndex(index)}
+                      onClick={() => acceptCommand(command)}
+                    >
+                      <span className="chat-command-name">/{command.name}</span>
+                      <span className="chat-command-source">{command.source}</span>
+                      {command.description ? <span className="chat-command-desc">{command.description}</span> : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <textarea
+                className="chat-input"
+                placeholder={rpcState.isStreaming ? 'Steer pi…  (Enter to send)' : 'Message pi…  (Enter to send, Shift+Enter for newline, / for commands)'}
+                value={input}
+                onChange={(event) => {
+                  setInput(event.target.value)
+                  setCommandIndex(0)
+                }}
+                onKeyDown={onKeyDown}
+                rows={3}
+                disabled={rpcState.status !== 'ready'}
+              />
+              {rpcState.isStreaming ? (
+                <button className="chat-send stop" title="Stop" onClick={stop}>
+                  <StopIcon size={15} />
+                </button>
+              ) : (
+                <button className="chat-send" title="Send" onClick={() => void send()} disabled={!input.trim() || rpcState.status !== 'ready'}>
+                  <SendIcon size={15} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {toasts.length ? (
+        <div className="chat-toasts">
+          {toasts.map((toast) => (
+            <div className="chat-toast" data-kind={toast.kind} key={toast.id}>
+              {toast.message}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {dialogs.length ? <ExtensionUi dialog={dialogs[0]} onRespond={respondDialog} /> : null}
     </section>
   )
 }
