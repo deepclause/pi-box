@@ -1,6 +1,6 @@
 # pi-box
 
-![pi-box screenshot](docs/screenshot.png)
+![pi-box — chat interface](docs/screenshots/chat.png)
 
 Native desktop app for macOS, Linux and Windows that wraps
 [AgentVM](https://github.com/deepclause/agentvm) — a lightweight WASM-based
@@ -8,11 +8,16 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 - a **chat UI** for pi (Claude-Desktop style): streaming replies, thinking
   blocks, live tool cards, model/thinking pickers, token & context stats,
-  image attachments, and a `/` command palette — driven by a headless
+  image **and file** attachments (PDF / text / docx / xlsx are copied into the
+  workspace for pi to read), and a `/` command palette — driven by a headless
   `pi --mode rpc` process inside the VM,
+- **native provider sign-in**: API keys and OAuth (Claude Pro/Max, GitHub
+  Copilot, OpenAI Codex, …) handled in-app, written to the workspace's
+  `.pi/auth.json`, with a first-run onboarding flow,
 - **multiple pi sessions** per workspace (new, switch, rename, delete, fork,
   clone, export), listed in a sidebar and backed by the workspace's session files,
-- a **terminal** (tmux) for shells; the pi **TUI** is one click away in the header,
+- a **terminal** (tmux) for real shells — run the pi **TUI**, `pi install` extra
+  extensions, or anything else in the VM,
 - **extra shell windows** via tmux (the “new shell” button sends `Ctrl+B c`),
 - a full-featured **terminal**: truecolor, inline images (kitty protocol),
   clickable OSC 8 hyperlinks, and clipboard copy/paste (keyboard + right-click menu),
@@ -33,22 +38,45 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 ![status](https://img.shields.io/badge/status-prototype-orange)
 
 > **Startup note:** the VM boots to a shell quickly (snapshotted with Wizer),
-> but starting `pi` inside the emulated RISC-V VM takes ~30 s — it is a V8
-> process running under emulation. The chat pane shows a “Starting pi…” state
-> while it boots and the terminal is usable meanwhile. We set `PI_OFFLINE=1` so
-> pi skips its startup network downloads (fd/ripgrep, catalog refresh), which
-> keeps this as fast as possible.
+> but starting `pi` inside the emulated RISC-V VM takes ~30 s, and **much longer
+> with extensions installed** — pi transpiles TypeScript extensions at startup,
+> and a large one can take minutes. The chat pane shows a “Starting pi…” state
+> with tips while it boots, and the terminal is usable meanwhile. We set
+> `PI_OFFLINE=1` so pi skips its startup network downloads (fd/ripgrep, catalog
+> refresh).
+
+## Screenshots
+
+**Chat** — streaming replies, thinking blocks, tool cards, image & file attachments, and the session list.
+
+![Chat](docs/screenshots/chat.png)
+
+**Providers** — sign in with a subscription or an API key; credentials live in the workspace.
+
+![Providers](docs/screenshots/providers.png)
+
+**Terminal** — a real tmux shell inside the VM (install `pi` extensions or anything else).
+
+![Terminal](docs/screenshots/terminal.png)
+
+**Commands** — the `/` palette lists extension, prompt and skill commands.
+
+![Slash commands](docs/screenshots/commands.png)
+
+**First boot** — the VM comes up while the chat explains the wait.
+
+![Starting up](docs/screenshots/startup.png)
 
 ## Download
 
-[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.2.0`
+[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.3.0`
 
-- **macOS (Apple Silicon):** [pi-box-0.2.0-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.2.0/pi-box-0.2.0-arm64.dmg)
-- **macOS (Intel):** [pi-box-0.2.0.dmg](https://github.com/deepclause/pi-box/releases/download/v0.2.0/pi-box-0.2.0.dmg)
-- **Linux (AppImage):** [pi-box-0.2.0.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.2.0/pi-box-0.2.0.AppImage)
-- **Linux (deb):** [pi-box_0.2.0_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.2.0/pi-box_0.2.0_amd64.deb)
-- **Windows (installer):** [pi-box.Setup.0.2.0.exe](https://github.com/deepclause/pi-box/releases/download/v0.2.0/pi-box.Setup.0.2.0.exe)
-- **Windows (portable):** [pi-box.0.2.0.exe](https://github.com/deepclause/pi-box/releases/download/v0.2.0/pi-box.0.2.0.exe)
+- **macOS (Apple Silicon):** [pi-box-0.3.0-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box-0.3.0-arm64.dmg)
+- **macOS (Intel):** [pi-box-0.3.0.dmg](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box-0.3.0.dmg)
+- **Linux (AppImage):** [pi-box-0.3.0.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box-0.3.0.AppImage)
+- **Linux (deb):** [pi-box_0.3.0_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box_0.3.0_amd64.deb)
+- **Windows (installer):** [pi-box.Setup.0.3.0.exe](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box.Setup.0.3.0.exe)
+- **Windows (portable):** [pi-box.0.3.0.exe](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box.0.3.0.exe)
 
 > **macOS / Windows note:** these builds are **unsigned and not notarized**,
 > and may still have issues (Gatekeeper prompts or odd errors). If a binary
@@ -70,7 +98,7 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 ## Network & persistence
 
-Built on `deepclause-agentvm` 0.3.3:
+Built on `deepclause-agentvm` 0.3.4:
 
 - **Network on/off** — toggle guest networking at runtime (header button or gear menu).
 - **Port forwarding** — expose guest TCP servers on host ports; add/remove at runtime.
@@ -202,8 +230,8 @@ npm install
 npm run dev
 ```
 
-> `deepclause-agentvm` is an exact npm pin (currently `0.3.3`), so the app uses
-> the published package (including its ~322 MB `agentvm-alpine-python.wasm`
+> `deepclause-agentvm` is an exact npm pin (currently `0.3.4`), so the app uses
+> the published package (including its ~350 MB `agentvm-alpine-python.wasm`
 > image).
 
 ### Linux sandbox note
@@ -250,6 +278,10 @@ Release binaries are built by GitHub Actions on every published release — see
       hyperlinks, clipboard copy/paste, extended keys.
 - [ ] **Per-file actions** — editing in `vi` is done; open/rename/delete in the
       tree are still pending.
+- [x] **Provider auth** — native sign-in (API keys + OAuth), first-run
+      onboarding, and credential management written to the workspace.
+- [x] **File attachments** — images inline; PDF / text / docx / xlsx copied into
+      the workspace and referenced for pi to read.
 - [ ] **Workspace settings UI** — edit `.pi/settings.json`, pick provider/model,
       manage sessions from the sidebar.
 - [x] **VM controls** — restart button, network on/off toggle, TCP port
