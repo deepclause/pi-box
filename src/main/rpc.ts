@@ -22,7 +22,10 @@ import type { WorkspaceStore } from './workspaces'
 
 /** Workspace-relative location of the bridge log + readiness marker. */
 const BRIDGE_LOG_REL = path.join('.pi-box', 'rpc-bridge.log')
-const START_TIMEOUT_MS = 120_000
+// pi loads its extensions at startup; each installed extension adds load time
+// (a large TS extension can take minutes under emulation). Allow a generous
+// window before treating the start as failed.
+const START_TIMEOUT_MS = 300_000
 
 function log(message: string, ...rest: unknown[]): void {
   console.log(`[rpc ${new Date().toISOString().slice(11, 23)}] ${message}`, ...rest)
@@ -404,7 +407,7 @@ export class RpcSessionManager extends EventEmitter {
       await connection.connect(hostPort)
       this.connection = connection
       this.hostPort = hostPort
-      log('connected; requesting state (pi may take ~30s to start)')
+      log('connected; requesting state (pi may take a while to start, longer with more extensions)')
 
       const response = await connection.send({ type: 'get_state' }, START_TIMEOUT_MS)
       if (!response.success) throw new Error(response.error ?? 'get_state failed')

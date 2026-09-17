@@ -848,7 +848,24 @@ export default function ChatView({
                 <div className="chat-starting-card">
                   <div className="chat-spinner" />
                   <div className="chat-starting-title">{rpcState.statusMessage ?? 'Starting pi…'}</div>
-                  <div className="chat-starting-sub">pi runs inside the VM, so first launch takes ~30 seconds while it boots.</div>
+                  <div className="chat-starting-sub">
+                    pi runs inside the VM, so startup takes a while — and longer with more extensions installed.
+                  </div>
+                  <div className="chat-starting-tips">
+                    <div className="chat-starting-tip">
+                      While you wait, open the <strong>Terminal</strong> tab — run{' '}
+                      <code className="mono">pi install</code> to add extensions, or install whatever you like on
+                      the VM.
+                    </div>
+                    <div className="chat-starting-tip">
+                      Heads up: this isn’t a general-purpose VM, so not everything works out of the box — pi can
+                      help you figure it out.
+                    </div>
+                    <div className="chat-starting-tip">
+                      After installing extensions, restart pi with <strong>Reconnect</strong> from the{' '}
+                      <strong>…</strong> menu.
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : chat.messages.length === 0 ? (
