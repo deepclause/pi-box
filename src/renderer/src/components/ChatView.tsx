@@ -438,17 +438,25 @@ export default function ChatView({
     void reloadSessions()
   }, [state?.activeWorkspaceId, reloadSessions])
 
+  // Reset the retry budget when the session becomes usable or the workspace
+  // changes (a different workspace boots a different pi process).
   useEffect(() => {
     if (rpcState.status === 'ready') retryRef.current = 0
   }, [rpcState.status])
 
   useEffect(() => {
+    retryRef.current = 0
+  }, [state?.activeWorkspaceId])
+
+  useEffect(() => {
     if (state?.status !== 'ready' || !state?.activeWorkspaceId) return
     if (rpcState.status === 'starting' || rpcState.status === 'ready') return
     if (rpcState.status === 'error') {
+      // Give up after a few attempts instead of hammering a VM whose pi keeps
+      // exiting (e.g. a broken extension); the error bar shows why.
       if (retryRef.current >= 3) return
       retryRef.current += 1
-      const timer = setTimeout(() => void open(), 4000)
+      const timer = setTimeout(() => void open(), 4000 * retryRef.current)
       return () => clearTimeout(timer)
     }
     void open()

@@ -28,6 +28,28 @@ function log(message: string, ...rest: unknown[]): void {
   console.log(`[rpc ${new Date().toISOString().slice(11, 23)}] ${message}`, ...rest)
 }
 
+/**
+ * pi writes its stderr to the bridge log. When startup fails, surface the last
+ * meaningful line (e.g. an extension load error) rather than a bare socket
+ * error, so the chat UI can explain why pi exited.
+ */
+function readBridgeError(workspacePath: string): string | undefined {
+  try {
+    const text = fs.readFileSync(path.join(workspacePath, BRIDGE_LOG_REL), 'utf8')
+    const lines = text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+    if (lines.length === 0) return undefined
+    for (let i = lines.length - 1; i >= Math.max(0, lines.length - 80); i--) {
+      if (/Failed to load extension|^Error:|ERROR:/.test(lines[i])) return lines[i].slice(0, 400)
+    }
+    return lines[lines.length - 1].slice(0, 400)
+  } catch {
+    return undefined
+  }
+}
+
 const GUEST_SESSIONS_DIR = '/workspace/.pi/sessions'
 
 function extractText(content: unknown): string {
@@ -296,6 +318,8 @@ export class RpcSessionManager extends EventEmitter {
   private connection: RpcConnection | null = null
   private hostPort: number | null = null
   private starting: Promise<RpcState> | null = null
+  /** True while an intentional close (teardown) is in flight. */
+  private closing = false
 
   private stateValue: RpcState = {
     status: 'idle',
@@ -369,8 +393,11 @@ export class RpcSessionManager extends EventEmitter {
         this.setState({ status: 'error', statusMessage: err.message })
       })
       connection.on('close', () => {
-        if (this.stateValue.status === 'ready' || this.stateValue.status === 'starting') {
-          this.setState({ status: 'idle', statusMessage: 'Session closed', isStreaming: false })
+        if (this.closing) return
+        // A close while starting is a failed start; leave the error to the
+        // catch below. A close while ready is an unexpected drop.
+        if (this.stateValue.status === 'ready') {
+          this.setState({ status: 'error', statusMessage: 'pi session closed unexpectedly', isStreaming: false })
         }
       })
 
@@ -409,7 +436,9 @@ export class RpcSessionManager extends EventEmitter {
       log(`ready (model ${this.stateValue.model?.id ?? 'none'}, session ${this.stateValue.sessionFile ?? 'none'})`)
       return this.state
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
+      const base = err instanceof Error ? err.message : String(err)
+      const detail = readBridgeError(workspace.path)
+      const message = detail && !base.includes(detail) ? `${base}: ${detail}` : base
       log('start failed:', message)
       if (connection) connection.close()
       this.connection = null
@@ -712,6 +741,7 @@ export class RpcSessionManager extends EventEmitter {
   async teardown(): Promise<void> {
     const connection = this.connection
     this.connection = null
+    this.closing = true
     if (this.hostPort !== null) {
       try {
         this.vm.removePortForward(this.hostPort)
@@ -722,5 +752,8 @@ export class RpcSessionManager extends EventEmitter {
     }
     if (connection) connection.close()
     this.setState({ status: 'idle', statusMessage: undefined, isStreaming: false, sessionId: null })
+    setImmediate(() => {
+      this.closing = false
+    })
   }
 }
