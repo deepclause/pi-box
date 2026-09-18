@@ -7,6 +7,13 @@ import type { FileNode, Workspace } from '../shared/types'
 // The guest RPC bridge is authored as a real script (scripts/pi-rpc-bridge.py)
 // and inlined here at build time, so there is a single source of truth.
 import piRpcBridgeSource from '../../scripts/pi-rpc-bridge.py?raw'
+// Framebuffer game helper + example games, seeded into each workspace's
+// `.pi-box/fbgames` for the Screen view. Authored as real files for editing.
+import fbgameSource from '../../resources/fbgames/fbgame.py?raw'
+import fbBounceSource from '../../resources/fbgames/bounce.py?raw'
+import fbSnakeSource from '../../resources/fbgames/snake.py?raw'
+import fbPongSource from '../../resources/fbgames/pong.py?raw'
+import fbgamesReadme from '../../resources/fbgames/README.md?raw'
 
 const DEFAULT_WORKSPACE_DIR = path.join(os.homedir(), 'pi-box-workspace')
 const MAX_ENTRIES_PER_DIR = 500
@@ -67,107 +74,6 @@ const PIBOX_CONFIG = `# pi-box startup config — sourced before tmux launches.
 #   PI_BOX_TMUX_CONF=/workspace/.pi-box/tmux.conf
 `
 
-/**
- * A tiny bouncing-ball demo for the VM's virtual framebuffer (/dev/fb0).
- * Seeded read-only into each workspace so the Screen view works out of the box;
- * pi can copy/adapt it when building its own games.
- */
-const FB_BOUNCE_GAME = `#!/usr/bin/env python3
-"""Bouncing-ball demo for the AgentVM virtual framebuffer (/dev/fb0).
-
-Arrow keys flip the ball, space recentres it, Esc quits. Only the ball's
-bounding box is repainted each frame, so the host gets small damage rects.
-"""
-import mmap
-import os
-import select
-import struct
-import time
-
-W, H = 1024, 768
-R = 18
-STRIDE = W * 4
-
-EV_KEY = 0x01
-KEY_ESC, KEY_SPACE = 1, 57
-KEY_UP, KEY_LEFT, KEY_RIGHT, KEY_DOWN = 103, 105, 106, 108
-
-
-def rgb(r, g, b, a=255):
-    # a8r8g8b8 little-endian: bytes are B, G, R, A
-    return bytes((b, g, r, a))
-
-
-def main():
-    fb = open('/dev/fb0', 'r+b', buffering=0)
-    m = mmap.mmap(fb.fileno(), W * H * 4)
-    try:
-        kbd = os.open('/dev/input/event0', os.O_RDONLY | os.O_NONBLOCK)
-    except OSError:
-        kbd = -1
-
-    bg = rgb(12, 12, 16)
-    ball = rgb(90, 200, 255)
-    m[:] = bg * (W * H)
-
-    x, y = W // 2, H // 2
-    vx, vy = 6, 5
-    prev = (x - R, y - R, 2 * R, 2 * R)
-
-    def disc(cx, cy):
-        for dy in range(-R, R + 1):
-            span = int((R * R - dy * dy) ** 0.5)
-            row = (cy + dy) * STRIDE + (cx - span) * 4
-            m[row:row + (2 * span + 1) * 4] = ball * (2 * span + 1)
-
-    def blank(bx, by, bw, bh):
-        for j in range(by, by + bh):
-            row = j * STRIDE + bx * 4
-            m[row:row + bw * 4] = bg * bw
-
-    running = True
-    while running:
-        if kbd >= 0:
-            while select.select([kbd], [], [], 0)[0]:
-                data = os.read(kbd, 24)
-                if len(data) < 24:
-                    break
-                _, _, etype, code, value = struct.unpack('llHHi', data)
-                if etype != EV_KEY or value != 1:
-                    continue
-                if code == KEY_ESC:
-                    running = False
-                elif code in (KEY_LEFT, KEY_RIGHT):
-                    vx = -vx
-                elif code in (KEY_UP, KEY_DOWN):
-                    vy = -vy
-                elif code == KEY_SPACE:
-                    x, y = W // 2, H // 2
-
-        x += vx
-        y += vy
-        if x - R < 0 or x + R >= W:
-            vx = -vx
-            x += vx
-        if y - R < 0 or y + R >= H:
-            vy = -vy
-            y += vy
-
-        blank(prev[0], prev[1], prev[2], prev[3])
-        disc(x, y)
-        prev = (x - R, y - R, 2 * R, 2 * R)
-        time.sleep(1 / 60)
-
-    m[:] = bg * (W * H)
-    m.close()
-    fb.close()
-    if kbd >= 0:
-        os.close(kbd)
-
-
-if __name__ == '__main__':
-    main()
-`
 
 interface StoreShape {
   version: number
@@ -383,11 +289,21 @@ export class WorkspaceStore {
       }
 
       // Seed a demo game for the Screen view (create once; pi may edit it).
+      // Framebuffer games (for the Screen view). The helper is app-owned and
+      // refreshed so fixes propagate; the examples are created once so the
+      // user/pi can edit them.
       const gamesDir = path.join(boxDir, 'fbgames')
       fs.mkdirSync(gamesDir, { recursive: true })
-      const bouncePath = path.join(gamesDir, 'bounce.py')
-      if (!fs.existsSync(bouncePath)) {
-        fs.writeFileSync(bouncePath, FB_BOUNCE_GAME, 'utf8')
+      fs.writeFileSync(path.join(gamesDir, 'fbgame.py'), fbgameSource, 'utf8')
+      const examples: Array<[string, string]> = [
+        ['bounce.py', fbBounceSource],
+        ['snake.py', fbSnakeSource],
+        ['pong.py', fbPongSource],
+        ['README.md', fbgamesReadme]
+      ]
+      for (const [name, source] of examples) {
+        const target = path.join(gamesDir, name)
+        if (!fs.existsSync(target)) fs.writeFileSync(target, source, 'utf8')
       }
     } catch (err) {
       console.error('Failed to prepare .pi-box config:', err)
