@@ -6,11 +6,6 @@ import { PI_RPC_GUEST_PORT } from '../shared/rpc-types'
 // busybox ash queries the terminal for the cursor position once its prompt is
 // interactive. This tells us the shell is ready to receive the startup script.
 const SHELL_READY_MARKER = '\x1b[6n'
-// Answer to the cursor-position query (DSR). Without it the shell can consume
-// the first bytes of the startup script as the query's response, so the
-// script's first line arrives unbalanced and ash reports
-// `syntax error: unexpected ")"` (seen on macOS/Windows release builds).
-const DSR_RESPONSE = '\x1b[1;1R'
 // pi's TUI shows this startup-help hint once it has finished rendering. tmux
 // consumes pi's OSC title escape, so we can't use the old `π - …` marker. The
 // footer text is a second, always-visible signal.
@@ -129,10 +124,9 @@ export class VmManager extends EventEmitter {
       await this.waitForShellReady(30_000, token)
       if (token !== this.startToken || this.stopping) return
 
-      // Answer the shell's cursor-position query first, so it finishes that
-      // read and returns to the prompt before consuming the startup script.
-      await this.write(DSR_RESPONSE)
-      // The script is consumed by the shell once it reads stdin.
+      // The script is consumed by the shell once it reads stdin. (AgentVM
+      // answers the shell's cursor-position query and creates the guest device
+      // nodes when the prompt appears.)
       await this.write(this.buildStartupScript(mountPoint, network))
       this.scheduleReady(token)
     } catch (err) {
@@ -285,15 +279,6 @@ export class VmManager extends EventEmitter {
     // them (extra env vars, or PI_BOX_TMUX_CONF pointing at a custom tmux conf).
     lines.push(`if [ -f ${configFile} ]; then . ${configFile}; fi`)
     lines.push(`cd ${mountPoint}`)
-    // The container /dev is a tmpfs without udev, so the framebuffer and
-    // virtio-input device nodes must be created by hand. (AgentVM does this in
-    // its exec-mode setup, which is skipped in the interactive mode we use.)
-    // They back the Screen view (/dev/fb0) and its keyboard/mouse input.
-    lines.push('mknod /dev/fb0 c 29 0 2>/dev/null')
-    lines.push('mkdir -p /dev/input')
-    lines.push(
-      'for d in /sys/class/input/event*; do [ -e "$d/dev" ] || continue; v=$(cat "$d/dev"); mknod "/dev/input/${d##*/}" c "${v%:*}" "${v##*:}" 2>/dev/null; done'
-    )
     // Guest-side RPC bridge for the chat UI. Launch it first so it can warm a
     // pi process while the NIC comes up. Remove any stale readiness marker
     // first: the workspace (and thus the marker) survives VM restarts.
