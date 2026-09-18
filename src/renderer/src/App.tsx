@@ -11,6 +11,7 @@ import AuthDialog from './components/AuthDialog'
 import ProvidersSettings from './components/ProvidersSettings'
 import Onboarding from './components/Onboarding'
 import { useAuth } from './lib/useAuth'
+import { useGuestAudio } from './lib/useGuestAudio'
 
 export default function App() {
   const [state, setState] = useState<AppState | null>(null)
@@ -43,6 +44,8 @@ export default function App() {
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
   const [setupOpen, setSetupOpen] = useState(false)
   const auth = useAuth()
+  // Plays the guest's virtio-snd PCM (audio from games and other guest apps).
+  const guestAudio = useGuestAudio()
 
   useEffect(() => {
     let mounted = true
@@ -220,6 +223,9 @@ export default function App() {
             onOpenNetworkSettings={() => setNetworkOpen(true)}
             hasCredentials={hasCredentials}
             onOpenProviders={openProviders}
+            audioEnabled={guestAudio.enabled}
+            audioAvailable={guestAudio.available}
+            onToggleAudio={guestAudio.toggle}
           />
           {/* All views stay mounted so the terminal keeps receiving console
               output (and its scrollback) and the screen keeps its framebuffer

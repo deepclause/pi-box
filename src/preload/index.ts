@@ -1,5 +1,14 @@
 import { contextBridge, ipcRenderer, shell } from 'electron'
-import type { AppState, AttachFileResult, FbFrame, FbSnapshot, FileNode, FirewallRule, OpenResult } from '../shared/types'
+import type {
+  AppState,
+  AttachFileResult,
+  AudioChunk,
+  FbFrame,
+  FbSnapshot,
+  FileNode,
+  FirewallRule,
+  OpenResult
+} from '../shared/types'
 import type {
   AuthEventMessage,
   AuthLoginResult,
@@ -70,6 +79,13 @@ export interface PiBoxAuthApi {
   onStatus(cb: (status: AuthStatus[]) => void): () => void
 }
 
+export interface PiBoxAudioApi {
+  /** Negotiated guest audio format, or null before the guest opens the device. */
+  getFormat(): Promise<{ sampleRate: number; channels: number; format: string } | null>
+  /** Subscribe to S16_LE interleaved PCM produced by the guest. */
+  onFrame(cb: (chunk: AudioChunk) => void): () => void
+}
+
 export interface PiBoxFbApi {
   /** Latest full frame (BGRA), or null before the first frame. */
   get(): Promise<FbSnapshot | null>
@@ -96,6 +112,7 @@ export interface PiBoxApi {
   readTree(id: string, dirPath?: string): Promise<FileNode[]>
   attachFile(name: string, bytes: Uint8Array): Promise<AttachFileResult>
   fb: PiBoxFbApi
+  audio: PiBoxAudioApi
   termInput(data: string): void
   termResize(cols: number, rows: number): void
   clipboardReadText(): Promise<string>
@@ -136,6 +153,15 @@ const api: PiBoxApi = {
       const listener = (_event: Electron.IpcRendererEvent, frame: FbFrame): void => cb(frame)
       ipcRenderer.on('pibox:fb:frame', listener)
       return () => ipcRenderer.removeListener('pibox:fb:frame', listener)
+    }
+  },
+
+  audio: {
+    getFormat: () => ipcRenderer.invoke('pibox:audio:format'),
+    onFrame: (cb) => {
+      const listener = (_event: Electron.IpcRendererEvent, chunk: AudioChunk): void => cb(chunk)
+      ipcRenderer.on('pibox:audio:frame', listener)
+      return () => ipcRenderer.removeListener('pibox:audio:frame', listener)
     }
   },
   termInput: (data) => ipcRenderer.send('pibox:termInput', data),

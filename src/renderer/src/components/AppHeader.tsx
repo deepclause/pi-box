@@ -7,6 +7,7 @@ import {
   GearIcon,
   ListIcon,
   MoonIcon,
+  SpeakerIcon,
   SunIcon,
   UserIcon
 } from './icons'
@@ -28,6 +29,9 @@ interface Props {
   onOpenNetworkSettings: () => void
   hasCredentials: boolean
   onOpenProviders: () => void
+  audioEnabled: boolean
+  audioAvailable: boolean
+  onToggleAudio: () => void
 }
 
 export default function AppHeader({
@@ -44,7 +48,10 @@ export default function AppHeader({
   onToggleNetwork,
   onOpenNetworkSettings,
   hasCredentials,
-  onOpenProviders
+  onOpenProviders,
+  audioEnabled,
+  audioAvailable,
+  onToggleAudio
 }: Props) {
   const newShell = (): void => {
     window.pibox.termInput('\x02c')
@@ -115,6 +122,20 @@ export default function AppHeader({
         >
           <span className="network-dot" data-up={state?.networkEnabled ? 'true' : 'false'} />
           {state?.networkEnabled ? 'online' : 'offline'}
+        </button>
+        <button
+          className="icon-btn"
+          title={
+            audioAvailable
+              ? audioEnabled
+                ? 'Mute VM audio'
+                : 'Unmute VM audio'
+              : 'VM audio unavailable'
+          }
+          data-active={audioEnabled && audioAvailable ? 'true' : 'false'}
+          onClick={onToggleAudio}
+        >
+          <SpeakerIcon size={15} muted={!audioEnabled} />
         </button>
         <button
           className="icon-btn"

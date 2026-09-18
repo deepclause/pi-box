@@ -290,6 +290,29 @@ export function StopIcon({ size = 15, className }: IconProps) {
   )
 }
 
+export function SpeakerIcon({ size = 15, className, muted = false }: IconProps & { muted?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M4 9.5h3.2L12 6v12l-4.8-3.5H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      {muted ? (
+        <path d="M16 9.5l5 5M21 9.5l-5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      ) : (
+        <path
+          d="M15.5 9.2a3.8 3.8 0 0 1 0 5.6M18.3 6.8a7.2 7.2 0 0 1 0 10.4"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+      )}
+    </svg>
+  )
+}
+
 export function CheckIcon({ size = 15, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">

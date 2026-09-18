@@ -48,6 +48,13 @@ declare module 'deepclause-agentvm' {
     data: Uint8Array
   }
 
+  export interface AudioChunk {
+    sampleRate: number
+    channels: number
+    format: string
+    data: Uint8Array
+  }
+
   export class AgentVM {
     constructor(options?: AgentVMOptions)
     onStdout: ((data: Uint8Array) => void) | null
@@ -75,5 +82,9 @@ declare module 'deepclause-agentvm' {
     sendKey(code: string | number, down?: boolean): void
     /** Pointer event in framebuffer pixels (1=left, 2=right, 4=middle). */
     sendMouse(x: number, y: number, buttons?: number): void
+    /** Subscribe to PCM produced by the guest's virtio-snd device. */
+    onAudio(callback: (audio: AudioChunk) => void): () => void
+    /** Negotiated audio format, or null before the guest opens the device. */
+    getAudioFormat(): { sampleRate: number; channels: number; format: string } | null
   }
 }

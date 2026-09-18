@@ -328,6 +328,10 @@ export function registerIpc(ctx: IpcContext): void {
     }
   })
 
+  // --- guest audio (virtio-snd) ---
+
+  ipcMain.handle('pibox:audio:format', () => vm.getAudioFormat())
+
   ipcMain.on('pibox:termInput', (_event, data: string) => {
     void vm.write(data)
   })

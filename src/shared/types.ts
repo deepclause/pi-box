@@ -75,6 +75,14 @@ export interface FbSnapshot {
   data: Uint8Array
 }
 
+/** A chunk of guest audio (virtio-snd): S16_LE interleaved PCM. */
+export interface AudioChunk {
+  sampleRate: number
+  channels: number
+  format: string
+  data: Uint8Array
+}
+
 /** Result of copying an attached file into the active workspace. */
 export interface AttachFileResult {
   ok: boolean

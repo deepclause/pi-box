@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { AgentVM } from 'deepclause-agentvm'
-import type { FirewallRule, FbFrame, FbSnapshot, VmStatus } from '../shared/types'
+import type { AudioChunk, FirewallRule, FbFrame, FbSnapshot, VmStatus } from '../shared/types'
 import { PI_RPC_GUEST_PORT } from '../shared/rpc-types'
 
 // busybox ash queries the terminal for the cursor position once its prompt is
@@ -35,6 +35,7 @@ export class VmManager extends EventEmitter {
   private readyFallback: ReturnType<typeof setTimeout> | null = null
   private shellWaitTimer: ReturnType<typeof setTimeout> | null = null
   private framebufferUnsub: (() => void) | null = null
+  private audioUnsub: (() => void) | null = null
   private mountPoint = '/workspace'
 
   private _status: VmStatus = 'loading'
@@ -112,6 +113,8 @@ export class VmManager extends EventEmitter {
         rects: frame.rects ?? []
       } satisfies FbFrame)
     })
+    // Forward guest audio (virtio-snd -> ALSA -> PCM) to the app.
+    this.audioUnsub = vm.onAudio((audio) => this.emit('audio', audio))
     if (this._firewallRules.length > 0) {
       vm.setFirewall({ default: 'allow', rules: this._firewallRules })
     }
@@ -188,6 +191,11 @@ export class VmManager extends EventEmitter {
     return this.vm ? this.vm.removePortForward(hostPort) : false
   }
 
+  /** The guest's negotiated audio format, or null before it is opened. */
+  getAudioFormat(): { sampleRate: number; channels: number; format: string } | null {
+    return this.vm?.getAudioFormat() ?? null
+  }
+
   /** The latest framebuffer frame, or null if none has been produced yet. */
   getFramebuffer(): FbSnapshot | null {
     const frame = this.vm?.getFramebuffer()
@@ -235,6 +243,10 @@ export class VmManager extends EventEmitter {
     if (this.framebufferUnsub) {
       this.framebufferUnsub()
       this.framebufferUnsub = null
+    }
+    if (this.audioUnsub) {
+      this.audioUnsub()
+      this.audioUnsub = null
     }
     if (this.vm) {
       const vm = this.vm
