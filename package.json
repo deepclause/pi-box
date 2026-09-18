@@ -1,6 +1,6 @@
 {
   "name": "pi-box",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Native desktop app that wraps AgentVM: a terminal into the VM plus mountable workspace folders.",
   "main": "./out/main/index.js",
   "author": "pi-box",
