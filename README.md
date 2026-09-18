@@ -18,6 +18,11 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
   clone, export), listed in a sidebar and backed by the workspace's session files,
 - a **terminal** (tmux) for real shells — run the pi **TUI**, `pi install` extra
   extensions, or anything else in the VM,
+- a **Screen** tab that shows the VM's virtual framebuffer (`/dev/fb0`) and
+  forwards your keyboard/mouse, so small games written for the VM are playable
+  in-app (a `fbgame` helper and example games are seeded into each workspace),
+- **guest audio** (virtio-snd) played through the app, with a mute toggle —
+  games and other guest apps can make sound,
 - **extra shell windows** via tmux (the “new shell” button sends `Ctrl+B c`),
 - a full-featured **terminal**: truecolor, inline images (kitty protocol),
   clickable OSC 8 hyperlinks, and clipboard copy/paste (keyboard + right-click menu),
@@ -63,20 +68,24 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 ![Slash commands](docs/screenshots/commands.png)
 
+**Screen** — the VM's virtual framebuffer; small games render here and take keyboard input.
+
+![Screen](docs/screenshots/screen.png)
+
 **First boot** — the VM comes up while the chat explains the wait.
 
 ![Starting up](docs/screenshots/startup.png)
 
 ## Download
 
-[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.3.0`
+[Latest release](https://github.com/deepclause/pi-box/releases/latest) · `v0.4.0`
 
-- **macOS (Apple Silicon):** [pi-box-0.3.0-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box-0.3.0-arm64.dmg)
-- **macOS (Intel):** [pi-box-0.3.0.dmg](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box-0.3.0.dmg)
-- **Linux (AppImage):** [pi-box-0.3.0.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box-0.3.0.AppImage)
-- **Linux (deb):** [pi-box_0.3.0_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box_0.3.0_amd64.deb)
-- **Windows (installer):** [pi-box.Setup.0.3.0.exe](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box.Setup.0.3.0.exe)
-- **Windows (portable):** [pi-box.0.3.0.exe](https://github.com/deepclause/pi-box/releases/download/v0.3.0/pi-box.0.3.0.exe)
+- **macOS (Apple Silicon):** [pi-box-0.4.0-arm64.dmg](https://github.com/deepclause/pi-box/releases/download/v0.4.0/pi-box-0.4.0-arm64.dmg)
+- **macOS (Intel):** [pi-box-0.4.0.dmg](https://github.com/deepclause/pi-box/releases/download/v0.4.0/pi-box-0.4.0.dmg)
+- **Linux (AppImage):** [pi-box-0.4.0.AppImage](https://github.com/deepclause/pi-box/releases/download/v0.4.0/pi-box-0.4.0.AppImage)
+- **Linux (deb):** [pi-box_0.4.0_amd64.deb](https://github.com/deepclause/pi-box/releases/download/v0.4.0/pi-box_0.4.0_amd64.deb)
+- **Windows (installer):** [pi-box.Setup.0.4.0.exe](https://github.com/deepclause/pi-box/releases/download/v0.4.0/pi-box.Setup.0.4.0.exe)
+- **Windows (portable):** [pi-box.0.4.0.exe](https://github.com/deepclause/pi-box/releases/download/v0.4.0/pi-box.0.4.0.exe)
 
 > **macOS / Windows note:** these builds are **unsigned and not notarized**,
 > and may still have issues (Gatekeeper prompts or odd errors). If a binary
@@ -98,7 +107,7 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 
 ## Network & persistence
 
-Built on `deepclause-agentvm` 0.3.4:
+Built on `deepclause-agentvm` 0.4.0:
 
 - **Network on/off** — toggle guest networking at runtime (header button or gear menu).
 - **Port forwarding** — expose guest TCP servers on host ports; add/remove at runtime.
@@ -230,7 +239,7 @@ npm install
 npm run dev
 ```
 
-> `deepclause-agentvm` is an exact npm pin (currently `0.3.4`), so the app uses
+> `deepclause-agentvm` is an exact npm pin (currently `0.4.0`), so the app uses
 > the published package (including its ~350 MB `agentvm-alpine-python.wasm`
 > image).
 
@@ -282,6 +291,8 @@ Release binaries are built by GitHub Actions on every published release — see
       onboarding, and credential management written to the workspace.
 - [x] **File attachments** — images inline; PDF / text / docx / xlsx copied into
       the workspace and referenced for pi to read.
+- [x] **Screen & audio** — the VM's virtual framebuffer (play small games in-app)
+      and virtio-snd playback with a mute toggle.
 - [ ] **Workspace settings UI** — edit `.pi/settings.json`, pick provider/model,
       manage sessions from the sidebar.
 - [x] **VM controls** — restart button, network on/off toggle, TCP port
