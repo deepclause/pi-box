@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, shell } from 'electron'
-import type { AppState, AttachFileResult, FileNode, FirewallRule, OpenResult } from '../shared/types'
+import type { AppState, AttachFileResult, FbFrame, FbSnapshot, FileNode, FirewallRule, OpenResult } from '../shared/types'
 import type {
   AuthEventMessage,
   AuthLoginResult,
@@ -70,6 +70,20 @@ export interface PiBoxAuthApi {
   onStatus(cb: (status: AuthStatus[]) => void): () => void
 }
 
+export interface PiBoxFbApi {
+  /** Latest full frame (BGRA), or null before the first frame. */
+  get(): Promise<FbSnapshot | null>
+  /** Launch a program in the guest (backgrounded); returns when it has started. */
+  run(command: string): Promise<boolean>
+  /** Stop the program launched by run(). */
+  stop(): Promise<boolean>
+  /** Keyboard event: a key name (e.g. 'ArrowLeft') or a raw evdev keycode. */
+  key(code: string | number, down: boolean): void
+  /** Pointer event in framebuffer pixels (1=left, 2=right, 4=middle). */
+  mouse(x: number, y: number, buttons: number): void
+  onFrame(cb: (frame: FbFrame) => void): () => void
+}
+
 export interface PiBoxApi {
   getState(): Promise<AppState>
   setOnboardingDone(done: boolean): Promise<AppState>
@@ -81,6 +95,7 @@ export interface PiBoxApi {
   openFolder(id: string): Promise<OpenResult>
   readTree(id: string, dirPath?: string): Promise<FileNode[]>
   attachFile(name: string, bytes: Uint8Array): Promise<AttachFileResult>
+  fb: PiBoxFbApi
   termInput(data: string): void
   termResize(cols: number, rows: number): void
   clipboardReadText(): Promise<string>
@@ -110,6 +125,19 @@ const api: PiBoxApi = {
   openFolder: (id) => ipcRenderer.invoke('pibox:openFolder', id),
   readTree: (id, dirPath) => ipcRenderer.invoke('pibox:readTree', id, dirPath),
   attachFile: (name, bytes) => ipcRenderer.invoke('pibox:attachFile', name, bytes),
+
+  fb: {
+    get: () => ipcRenderer.invoke('pibox:fb:get'),
+    run: (command) => ipcRenderer.invoke('pibox:fb:run', command),
+    stop: () => ipcRenderer.invoke('pibox:fb:stop'),
+    key: (code, down) => ipcRenderer.send('pibox:fb:key', code, down),
+    mouse: (x, y, buttons) => ipcRenderer.send('pibox:fb:mouse', x, y, buttons),
+    onFrame: (cb) => {
+      const listener = (_event: Electron.IpcRendererEvent, frame: FbFrame): void => cb(frame)
+      ipcRenderer.on('pibox:fb:frame', listener)
+      return () => ipcRenderer.removeListener('pibox:fb:frame', listener)
+    }
+  },
   termInput: (data) => ipcRenderer.send('pibox:termInput', data),
   termResize: (cols, rows) => ipcRenderer.send('pibox:termResize', cols, rows),
   clipboardReadText: () => ipcRenderer.invoke('pibox:clipboardReadText'),

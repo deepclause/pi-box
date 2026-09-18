@@ -6,7 +6,7 @@ import { WorkspaceStore } from './workspaces'
 import { RpcSessionManager } from './rpc'
 import { AuthService } from './auth'
 import { MOUNT_POINT, registerIpc } from './ipc'
-import type { AppState } from '../shared/types'
+import type { AppState, FbFrame } from '../shared/types'
 import type { RpcEvent, RpcState } from '../shared/rpc-types'
 
 let mainWindow: BrowserWindow | null = null
@@ -69,6 +69,12 @@ function broadcastRpcState(state: RpcState): void {
 function broadcastAuth(channel: string, payload: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(channel, payload)
+  }
+}
+
+function broadcastFramebuffer(frame: FbFrame): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('pibox:fb:frame', frame)
   }
 }
 
@@ -163,6 +169,7 @@ void app.whenReady().then(async () => {
 
   vm.on('status', () => broadcast())
   vm.on('output', broadcastOutput)
+  vm.on('framebuffer', broadcastFramebuffer)
   rpc.on('event', broadcastRpcEvent)
   rpc.on('state', broadcastRpcState)
 

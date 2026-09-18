@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { AgentVM } from 'deepclause-agentvm'
-import type { FirewallRule, VmStatus } from '../shared/types'
+import type { FirewallRule, FbFrame, FbSnapshot, VmStatus } from '../shared/types'
 import { PI_RPC_GUEST_PORT } from '../shared/rpc-types'
 
 // busybox ash queries the terminal for the cursor position once its prompt is
@@ -39,6 +39,8 @@ export class VmManager extends EventEmitter {
   private startToken = 0
   private readyFallback: ReturnType<typeof setTimeout> | null = null
   private shellWaitTimer: ReturnType<typeof setTimeout> | null = null
+  private framebufferUnsub: (() => void) | null = null
+  private mountPoint = '/workspace'
 
   private _status: VmStatus = 'loading'
   private _statusMessage = 'Starting…'
@@ -104,6 +106,17 @@ export class VmManager extends EventEmitter {
     }
 
     this.vm = vm
+    this.mountPoint = mountPoint
+    // Forward the VM's virtual framebuffer (simplefb) to the app. The worker
+    // only pushes damaged rectangles, and nothing while the screen is idle.
+    this.framebufferUnsub = vm.onFramebuffer((frame) => {
+      this.emit('framebuffer', {
+        width: frame.width,
+        height: frame.height,
+        stride: frame.stride,
+        rects: frame.rects ?? []
+      } satisfies FbFrame)
+    })
     if (this._firewallRules.length > 0) {
       vm.setFirewall({ default: 'allow', rules: this._firewallRules })
     }
@@ -181,9 +194,54 @@ export class VmManager extends EventEmitter {
     return this.vm ? this.vm.removePortForward(hostPort) : false
   }
 
+  /** The latest framebuffer frame, or null if none has been produced yet. */
+  getFramebuffer(): FbSnapshot | null {
+    const frame = this.vm?.getFramebuffer()
+    if (!frame) return null
+    return { width: frame.width, height: frame.height, stride: frame.stride, data: frame.data }
+  }
+
+  /** Inject a keyboard event into the guest's virtio-input device. */
+  sendKey(code: string | number, down = true): void {
+    this.vm?.sendKey(code, down)
+  }
+
+  /** Inject a pointer event (framebuffer pixel coordinates) into the guest. */
+  sendMouse(x: number, y: number, buttons = 0): void {
+    this.vm?.sendMouse(x, y, buttons)
+  }
+
+  /**
+   * Launch a long-running program (e.g. an fbdev game) in the background. Its
+   * output goes to `<workspace>/.pi-box/fbgame.log` and the pid to
+   * `fbgame.pid`, so the Screen view can show `/dev/fb0` and the Terminal stays
+   * on the shell.
+   */
+  async runProgram(command: string): Promise<void> {
+    if (!this.vm || this.phase !== 'ready') throw new Error('VM is not ready')
+    await this.stopProgram()
+    const dir = `${this.mountPoint}/.pi-box`
+    await this.write(`mkdir -p ${dir}\n`)
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    await this.write(
+      `nohup sh -c 'echo $$ > ${dir}/fbgame.pid; exec ${command}' >${dir}/fbgame.log 2>&1 </dev/null &\n`
+    )
+  }
+
+  /** Stop the program launched by runProgram, if any. */
+  async stopProgram(): Promise<void> {
+    if (!this.vm || this.phase !== 'ready') return
+    const dir = `${this.mountPoint}/.pi-box`
+    await this.write(`if [ -f ${dir}/fbgame.pid ]; then kill $(cat ${dir}/fbgame.pid) 2>/dev/null; rm -f ${dir}/fbgame.pid; fi\n`)
+  }
+
   async stop(): Promise<void> {
     this.stopping = true
     this.clearReadyFallback()
+    if (this.framebufferUnsub) {
+      this.framebufferUnsub()
+      this.framebufferUnsub = null
+    }
     if (this.vm) {
       const vm = this.vm
       this.vm = null
@@ -227,6 +285,15 @@ export class VmManager extends EventEmitter {
     // them (extra env vars, or PI_BOX_TMUX_CONF pointing at a custom tmux conf).
     lines.push(`if [ -f ${configFile} ]; then . ${configFile}; fi`)
     lines.push(`cd ${mountPoint}`)
+    // The container /dev is a tmpfs without udev, so the framebuffer and
+    // virtio-input device nodes must be created by hand. (AgentVM does this in
+    // its exec-mode setup, which is skipped in the interactive mode we use.)
+    // They back the Screen view (/dev/fb0) and its keyboard/mouse input.
+    lines.push('mknod /dev/fb0 c 29 0 2>/dev/null')
+    lines.push('mkdir -p /dev/input')
+    lines.push(
+      'for d in /sys/class/input/event*; do [ -e "$d/dev" ] || continue; v=$(cat "$d/dev"); mknod "/dev/input/${d##*/}" c "${v%:*}" "${v##*:}" 2>/dev/null; done'
+    )
     // Guest-side RPC bridge for the chat UI. Launch it first so it can warm a
     // pi process while the NIC comes up. Remove any stale readiness marker
     // first: the workspace (and thus the marker) survives VM restarts.

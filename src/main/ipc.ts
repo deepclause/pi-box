@@ -298,6 +298,36 @@ export function registerIpc(ctx: IpcContext): void {
     return store.readTree(id, dirPath)
   })
 
+  // --- virtual framebuffer (games / fbdev apps) ---
+
+  ipcMain.handle('pibox:fb:get', () => vm.getFramebuffer())
+
+  ipcMain.handle('pibox:fb:run', async (_event, command: string) => {
+    await vm.runProgram(command)
+    return true
+  })
+
+  ipcMain.handle('pibox:fb:stop', async () => {
+    await vm.stopProgram()
+    return true
+  })
+
+  ipcMain.on('pibox:fb:key', (_event, code: string | number, down: boolean) => {
+    try {
+      vm.sendKey(code, down)
+    } catch {
+      // unknown key / VM not ready
+    }
+  })
+
+  ipcMain.on('pibox:fb:mouse', (_event, x: number, y: number, buttons: number) => {
+    try {
+      vm.sendMouse(x, y, buttons)
+    } catch {
+      // VM not ready
+    }
+  })
+
   ipcMain.on('pibox:termInput', (_event, data: string) => {
     void vm.write(data)
   })

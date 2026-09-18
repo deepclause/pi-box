@@ -4,6 +4,7 @@ import LoadingScreen from './components/LoadingScreen'
 import NetworkSettings from './components/NetworkSettings'
 import WorkspaceSidebar from './components/WorkspaceSidebar'
 import TerminalView from './components/TerminalView'
+import FramebufferView from './components/FramebufferView'
 import ChatView from './components/ChatView'
 import AppHeader, { type AppView } from './components/AppHeader'
 import AuthDialog from './components/AuthDialog'
@@ -220,8 +221,9 @@ export default function App() {
             hasCredentials={hasCredentials}
             onOpenProviders={openProviders}
           />
-          {/* Both views stay mounted so the terminal keeps receiving console
-              output (and its scrollback) while the chat is on screen. */}
+          {/* All views stay mounted so the terminal keeps receiving console
+              output (and its scrollback) and the screen keeps its framebuffer
+              while another view is on top. */}
           <div className="view-container">
             <div className="view-slot" data-hidden={view !== 'chat'}>
               <ChatView
@@ -233,6 +235,9 @@ export default function App() {
             </div>
             <div className="view-slot" data-hidden={view !== 'terminal'}>
               <TerminalView state={state} theme={theme} visible={view === 'terminal'} />
+            </div>
+            <div className="view-slot" data-hidden={view !== 'screen'}>
+              <FramebufferView state={state} visible={view === 'screen'} />
             </div>
           </div>
         </section>

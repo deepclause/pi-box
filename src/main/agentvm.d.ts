@@ -25,6 +25,29 @@ declare module 'deepclause-agentvm' {
     bind?: string
   }
 
+  export interface FramebufferRect {
+    x: number
+    y: number
+    w: number
+    h: number
+    data: Uint8Array
+  }
+
+  export interface FramebufferFrame {
+    width: number
+    height: number
+    stride: number
+    data: Uint8Array
+    rects: FramebufferRect[] | null
+  }
+
+  export interface FramebufferSnapshot {
+    width: number
+    height: number
+    stride: number
+    data: Uint8Array
+  }
+
   export class AgentVM {
     constructor(options?: AgentVMOptions)
     onStdout: ((data: Uint8Array) => void) | null
@@ -44,5 +67,13 @@ declare module 'deepclause-agentvm' {
     removePortForward(hostPort: number): boolean
     listPortForwards(): PortForward[]
     snapshotRoot(): Promise<ExecResult>
+    /** Subscribe to virtual-framebuffer frames (simplefb). Returns an unsubscribe. */
+    onFramebuffer(callback: (frame: FramebufferFrame) => void): () => void
+    /** Latest full frame, or null if the image has no framebuffer / no frame yet. */
+    getFramebuffer(): FramebufferSnapshot | null
+    /** Keyboard event (key name such as 'ArrowLeft', or a raw evdev keycode). */
+    sendKey(code: string | number, down?: boolean): void
+    /** Pointer event in framebuffer pixels (1=left, 2=right, 4=middle). */
+    sendMouse(x: number, y: number, buttons?: number): void
   }
 }

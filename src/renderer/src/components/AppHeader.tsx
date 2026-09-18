@@ -11,7 +11,7 @@ import {
   UserIcon
 } from './icons'
 
-export type AppView = 'chat' | 'terminal'
+export type AppView = 'chat' | 'terminal' | 'screen'
 
 interface Props {
   state: AppState | null
@@ -87,6 +87,13 @@ export default function AppHeader({
             onClick={() => onSetView('terminal')}
           >
             Terminal
+          </button>
+          <button
+            className="view-switch-btn"
+            data-active={view === 'screen' ? 'true' : 'false'}
+            onClick={() => onSetView('screen')}
+          >
+            Screen
           </button>
         </div>
         <span className="status-pill" data-status={state?.status ?? 'loading'}>

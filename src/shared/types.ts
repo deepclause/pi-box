@@ -50,6 +50,31 @@ export interface OpenResult {
   error?: string
 }
 
+/** A damaged rectangle of the VM framebuffer (BGRA bytes, `w*h*4`). */
+export interface FbRect {
+  x: number
+  y: number
+  w: number
+  h: number
+  data: Uint8Array
+}
+
+/** Incremental framebuffer update: dimensions plus the damaged rectangles. */
+export interface FbFrame {
+  width: number
+  height: number
+  stride: number
+  rects: FbRect[]
+}
+
+/** A full framebuffer snapshot (BGRA bytes, `stride*height`). */
+export interface FbSnapshot {
+  width: number
+  height: number
+  stride: number
+  data: Uint8Array
+}
+
 /** Result of copying an attached file into the active workspace. */
 export interface AttachFileResult {
   ok: boolean
