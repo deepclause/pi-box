@@ -16,6 +16,12 @@ plumbing; `MessagePort` remains a possible throughput optimisation.
   the explicit subpath `@wllama/wllama/esm/index.js`.
 - Custom file import and multimodal are **not** in this pass (catalog downloads
   only).
+- A second, opt-in **native `llama-server`** engine was added. The user selects
+  the binary (detected on `PATH` or via a file picker); the app spawns it with
+  `--jinja`, `--api-key` and the active GGUF, waits for `/health`, and points
+  `models.json` straight at it. It gives GPU acceleration on hardware the WebGPU
+  backend can't use and native tool calling. Binaries are per-platform and not
+  bundled.
 - Verified end-to-end in Electron (Chromium 152, GTX 1050): `pibox-asset://`
   served the 8.46 MB wasm and a 1.19 MB GGUF, wllama loaded it on WebGPU and
   generated tokens with usage stats.

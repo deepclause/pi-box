@@ -39,9 +39,11 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
   outbound **firewall rules** (via the gear menu in the terminal header),
 - a **persistent root filesystem** per workspace, so guest-root changes (`apk add`,
   `/etc`, `/root`, `/tmp`, caches) survive restarts,
-- an optional **local LLM** running on the host with WebGPU (CPU fallback) via
-  [wllama](https://github.com/ngxson/wllama): download a small GGUF and let pi
-  use it as an OpenAI-compatible provider with tool calling — see
+- an optional **local LLM** that pi can use as an OpenAI-compatible provider,
+  with two engines: **[wllama](https://github.com/ngxson/wllama)** (WebGPU,
+  CPU fallback, no platform-specific binary) or a **native `llama-server`**
+  you point the app at (GPU acceleration on GPUs WebGPU can't use, native
+  tool calling). Models are GGUF files downloaded on demand — see
   `docs/wllama-local-llm-spec.md`.
 
 ![status](https://img.shields.io/badge/status-prototype-orange)
@@ -324,10 +326,12 @@ Release binaries are built by GitHub Actions on every published release — see
 - Persistence uses a 512 MB sparse ext4 overlay image per workspace
   (`<workspace>/.agentvm/upper.img`); the first boot of a workspace is slower
   because the guest formats it with `mkfs.ext4`.
-- The optional local LLM runs in a hidden Chromium window on the host and is
-  exposed to pi through AgentVM's gateway (`192.168.127.1` → `127.0.0.1`), so it
-  needs the VM network to be enabled. On GPUs Chromium blocklists, WebGPU is
-  forced on with `--enable-unsafe-webgpu`. llama.cpp's WebGPU backend requires
-  the GPU's `shader-f16` feature; on GPUs without it (e.g. NVIDIA Pascal) the
-  app falls back to CPU inference, which always works but is slow. Model weights
-  are downloaded on request (200 MB–2 GB) to `<userData>/models`.
+- The optional local LLM runs on the host and is exposed to pi through
+  AgentVM's gateway (`192.168.127.1` → `127.0.0.1`), so it needs the VM network
+  to be enabled. It has two engines: the built-in **wllama** (WebGPU with CPU
+  fallback; no platform-specific binary) and an optional **native
+  `llama-server`** whose binary you select (best GPU support and native tool
+  calling). llama.cpp's WebGPU backend requires the GPU's `shader-f16` feature;
+  on GPUs without it (e.g. NVIDIA Pascal) the app falls back to CPU inference,
+  which always works but is slow. Model weights are downloaded on request
+  (200 MB–2 GB) to `<userData>/models`.

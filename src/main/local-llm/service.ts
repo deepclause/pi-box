@@ -7,9 +7,11 @@ import { LocalModelStore } from './model-store'
 import { installLocalLlmProtocol } from './asset-protocol'
 import { findCatalogEntry } from './catalog'
 import { writeLocalProvider } from './pi-bridge'
+import { LlamaServerManager, detectLlamaServerPath, findFreePort } from './llama-server'
 import type { HostToMain } from '../../shared/local-llm-ipc'
 import type {
   LocalLlmCapabilities,
+  LocalLlmEngine,
   LocalLlmSettings,
   LocalLlmState,
   LocalLlmStatus,
@@ -17,6 +19,7 @@ import type {
 } from '../../shared/local-llm-types'
 
 const DEFAULT_PORT = 8321
+const DEFAULT_LLAMA_PORT = 8322
 const ALL_LAYERS = -1
 
 interface LoadWaiter {
@@ -106,6 +109,8 @@ export class LocalLlmService {
     () => this.onHostGone()
   )
 
+  private llama = new LlamaServerManager()
+
   private hostReady = false
   private hostInitPromise: Promise<void> | null = null
   private readyResolvers: Array<() => void> = []
@@ -153,12 +158,14 @@ export class LocalLlmService {
     } catch (error) {
       this.lastError = `Could not start local LLM server: ${String(error)}`
     }
+    await this.syncBackends()
     this.emit()
   }
 
   async stop(): Promise<void> {
     for (const controller of this.downloadControllers.values()) controller.abort()
     this.downloadControllers.clear()
+    await this.llama.stop().catch(() => undefined)
     await this.http.stop().catch(() => undefined)
     this.host.destroy()
     this.started = false
@@ -181,12 +188,15 @@ export class LocalLlmService {
     const file = this.settingsPath()
     const defaults: LocalLlmSettings = {
       enabled: false,
+      engine: 'wllama',
       port: DEFAULT_PORT,
       token: randomBytes(24).toString('hex'),
       activeModelId: null,
       nCtx: 8192,
       nGpuLayers: ALL_LAYERS,
-      modelsDir: path.join(this.options.userDataDir, 'models')
+      modelsDir: path.join(this.options.userDataDir, 'models'),
+      llamaServerPath: null,
+      llamaServerPort: DEFAULT_LLAMA_PORT
     }
     try {
       const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<LocalLlmSettings>
@@ -225,6 +235,7 @@ export class LocalLlmService {
     return {
       status: this.recomputeStatus(),
       enabled: this.settings?.enabled ?? false,
+      engine: this.settings?.engine ?? 'wllama',
       serverRunning: this.http.running,
       port: this.http.boundPort,
       capabilities: this.capabilities,
@@ -237,6 +248,13 @@ export class LocalLlmService {
         total: value.total
       })),
       modelsDir: this.settings?.modelsDir ?? '',
+      nCtx: this.settings?.nCtx ?? 8192,
+      nGpuLayers: this.settings?.nGpuLayers ?? ALL_LAYERS,
+      llamaServerPath: this.settings?.llamaServerPath ?? null,
+      llamaServerRunning: this.llama.running,
+      llamaServerPort: this.llama.port,
+      llamaServerVersion: this.llama.version ?? undefined,
+      llamaServerLog: this.llama.log || undefined,
       lastError: this.lastError
     }
   }
@@ -413,14 +431,17 @@ export class LocalLlmService {
 
   private writeProvider(): void {
     if (!this.workspacePath) return
-    const models = this.installedModels()
-    const active =
-      this.settings.enabled && this.settings.activeModelId
-        ? models.find((model) => model.id === this.settings.activeModelId)
-        : undefined
-    if (this.settings.enabled && active && this.http.boundPort) {
+    const useLlama = this.settings.engine === 'llama-server'
+    const active = this.settings.activeModelId
+      ? this.installedModels().find((model) => model.id === this.settings.activeModelId)
+      : undefined
+    const port = useLlama ? this.settings.llamaServerPort : this.http.boundPort
+    // llama-server loads one model per process, so advertise only the active one.
+    const models = useLlama ? (active ? [active] : []) : this.installedModels()
+    const ready = useLlama ? this.llama.running : !!this.http.boundPort
+    if (this.settings.enabled && active && ready && port) {
       writeLocalProvider(this.workspacePath, {
-        port: this.http.boundPort,
+        port,
         token: this.settings.token,
         models: models.map((model) => ({
           id: model.id,
@@ -433,6 +454,54 @@ export class LocalLlmService {
     }
   }
 
+  /**
+   * Start/stop/restart the native llama-server to match the selected engine,
+   * active model and load parameters. A no-op for the wllama engine.
+   */
+  private async syncBackends(): Promise<void> {
+    if (this.settings.engine !== 'llama-server') {
+      await this.llama.stop().catch(() => undefined)
+      this.writeProvider()
+      return
+    }
+    const binary = this.settings.llamaServerPath
+    const active = this.settings.activeModelId
+      ? this.installedModels().find((model) => model.id === this.settings.activeModelId)
+      : undefined
+    if (!this.settings.enabled || !binary || !active) {
+      await this.llama.stop().catch(() => undefined)
+      this.writeProvider()
+      return
+    }
+    const modelPath = this.store.pathForId(active.id)
+    if (!modelPath) {
+      this.lastError = `Model file missing for ${active.id}`
+      this.writeProvider()
+      return
+    }
+    try {
+      const port = await findFreePort(this.settings.llamaServerPort)
+      if (port !== this.settings.llamaServerPort) {
+        this.settings.llamaServerPort = port
+        this.saveSettings()
+      }
+      await this.llama.start({
+        binary,
+        modelPath,
+        modelId: active.id,
+        port,
+        nCtx: this.settings.nCtx || active.defaultContext,
+        nGpuLayers: this.settings.nGpuLayers,
+        token: this.settings.token,
+        onLog: (line) => console.log('[llama-server]', line)
+      })
+      this.lastError = undefined
+    } catch (error) {
+      this.lastError = error instanceof Error ? error.message : String(error)
+    }
+    this.writeProvider()
+  }
+
   // ---- public actions ------------------------------------------------------
 
   setEnabled(enabled: boolean): LocalLlmState {
@@ -440,6 +509,37 @@ export class LocalLlmService {
     this.saveSettings()
     this.writeProvider()
     this.emit()
+    void this.syncBackends().then(() => this.emit())
+    return this.getState()
+  }
+
+  setEngine(engine: LocalLlmEngine): LocalLlmState {
+    this.settings.engine = engine
+    this.saveSettings()
+    this.writeProvider()
+    this.emit()
+    void this.syncBackends().then(() => this.emit())
+    return this.getState()
+  }
+
+  setLlamaServerPath(binaryPath: string | null): LocalLlmState {
+    this.settings.llamaServerPath = binaryPath
+    this.saveSettings()
+    this.emit()
+    void this.syncBackends().then(() => this.emit())
+    return this.getState()
+  }
+
+  detectLlamaServer(): LocalLlmState {
+    const found = detectLlamaServerPath(this.settings.llamaServerPath)
+    if (found) this.settings.llamaServerPath = found
+    this.saveSettings()
+    this.emit()
+    return this.getState()
+  }
+
+  restartLlamaServer(): LocalLlmState {
+    void this.syncBackends().then(() => this.emit())
     return this.getState()
   }
 
@@ -448,6 +548,7 @@ export class LocalLlmService {
     this.saveSettings()
     this.writeProvider()
     this.emit()
+    void this.syncBackends().then(() => this.emit())
     return this.getState()
   }
 
@@ -456,6 +557,7 @@ export class LocalLlmService {
     this.saveSettings()
     this.writeProvider()
     this.emit()
+    void this.syncBackends().then(() => this.emit())
     return this.getState()
   }
 
@@ -463,6 +565,7 @@ export class LocalLlmService {
     this.settings.nGpuLayers = Number.isFinite(layers) ? Math.floor(layers) : ALL_LAYERS
     this.saveSettings()
     this.emit()
+    void this.syncBackends().then(() => this.emit())
     return this.getState()
   }
 
@@ -528,10 +631,12 @@ export class LocalLlmService {
       this.host.send({ t: 'unload' })
       this.currentModel = null
     }
+    if (this.settings.activeModelId === modelId) await this.llama.stop().catch(() => undefined)
     await this.store.remove(modelId)
     if (this.settings.activeModelId === modelId) this.settings.activeModelId = null
     this.saveSettings()
     this.writeProvider()
+    void this.syncBackends().then(() => this.emit())
     this.emit()
     return this.getState()
   }

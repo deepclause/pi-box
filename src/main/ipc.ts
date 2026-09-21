@@ -292,6 +292,49 @@ export function registerIpc(ctx: IpcContext): void {
     return state
   })
 
+  ipcMain.handle('pibox:localLlm:setEngine', (_event, engine: 'wllama' | 'llama-server') => {
+    const state = localLlm.setEngine(engine)
+    ctx.broadcast()
+    return state
+  })
+
+  ipcMain.handle('pibox:localLlm:setLlamaServerPath', (_event, binaryPath: string | null) => {
+    const state = localLlm.setLlamaServerPath(binaryPath)
+    ctx.broadcast()
+    return state
+  })
+
+  ipcMain.handle('pibox:localLlm:detectLlamaServer', () => {
+    const state = localLlm.detectLlamaServer()
+    ctx.broadcast()
+    return state
+  })
+
+  ipcMain.handle('pibox:localLlm:restartLlamaServer', () => {
+    const state = localLlm.restartLlamaServer()
+    ctx.broadcast()
+    return state
+  })
+
+  ipcMain.handle('pibox:localLlm:pickLlamaServer', async () => {
+    const win = ctx.getWindow()
+    const options: Electron.OpenDialogOptions = {
+      title: 'Select the llama-server binary',
+      properties: ['openFile'],
+      filters:
+        process.platform === 'win32'
+          ? [{ name: 'Executables', extensions: ['exe'] }]
+          : [{ name: 'All files', extensions: ['*'] }]
+    }
+    const result = win
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return localLlm.getState()
+    const state = localLlm.setLlamaServerPath(result.filePaths[0])
+    ctx.broadcast()
+    return state
+  })
+
   ipcMain.handle('pibox:localLlm:refresh', () => {
     const state = localLlm.refreshModels()
     ctx.broadcast()

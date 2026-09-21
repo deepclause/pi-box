@@ -14,6 +14,9 @@ export type LocalLlmStatus =
   | 'generating'
   | 'error'
 
+/** Which backend serves the OpenAI-compatible endpoint. */
+export type LocalLlmEngine = 'wllama' | 'llama-server'
+
 export interface LocalModelCatalogEntry {
   /** Stable id used in pi's models.json, e.g. "local/qwen3.5-0.8b-instruct". */
   id: string
@@ -47,6 +50,7 @@ export interface LocalLlmCapabilities {
 
 export interface LocalLlmSettings {
   enabled: boolean
+  engine: LocalLlmEngine
   port: number
   token: string
   activeModelId: string | null
@@ -54,6 +58,10 @@ export interface LocalLlmSettings {
   /** -1 = offload all layers to the GPU; 0 = CPU only. */
   nGpuLayers: number
   modelsDir: string
+  /** Absolute path to a native `llama-server` binary (llama-server engine). */
+  llamaServerPath: string | null
+  /** Port the native server listens on. */
+  llamaServerPort: number
 }
 
 export interface LocalLlmDownload {
@@ -65,7 +73,8 @@ export interface LocalLlmDownload {
 export interface LocalLlmState {
   status: LocalLlmStatus
   enabled: boolean
-  /** True once the HTTP server is listening. */
+  engine: LocalLlmEngine
+  /** True once the wllama HTTP server is listening. */
   serverRunning: boolean
   port: number | null
   capabilities: LocalLlmCapabilities | null
@@ -74,5 +83,13 @@ export interface LocalLlmState {
   activeModelId: string | null
   downloads: LocalLlmDownload[]
   modelsDir: string
+  nCtx: number
+  nGpuLayers: number
+  /** Native llama-server state. */
+  llamaServerPath: string | null
+  llamaServerRunning: boolean
+  llamaServerPort: number | null
+  llamaServerVersion?: string
+  llamaServerLog?: string
   lastError?: string
 }

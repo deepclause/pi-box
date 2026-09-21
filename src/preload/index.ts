@@ -97,6 +97,11 @@ export interface PiBoxLocalLlmApi {
   setEnabled(enabled: boolean): Promise<LocalLlmState>
   setNctx(nCtx: number): Promise<LocalLlmState>
   setGpuLayers(layers: number): Promise<LocalLlmState>
+  setEngine(engine: 'wllama' | 'llama-server'): Promise<LocalLlmState>
+  setLlamaServerPath(binaryPath: string | null): Promise<LocalLlmState>
+  detectLlamaServer(): Promise<LocalLlmState>
+  pickLlamaServer(): Promise<LocalLlmState>
+  restartLlamaServer(): Promise<LocalLlmState>
   refresh(): Promise<LocalLlmState>
   openModelsDir(): Promise<OpenResult>
   onState(cb: (state: LocalLlmState) => void): () => void
@@ -192,6 +197,12 @@ const api: PiBoxApi = {
     setEnabled: (enabled) => ipcRenderer.invoke('pibox:localLlm:setEnabled', enabled),
     setNctx: (nCtx) => ipcRenderer.invoke('pibox:localLlm:setNctx', nCtx),
     setGpuLayers: (layers) => ipcRenderer.invoke('pibox:localLlm:setGpuLayers', layers),
+    setEngine: (engine) => ipcRenderer.invoke('pibox:localLlm:setEngine', engine),
+    setLlamaServerPath: (binaryPath) =>
+      ipcRenderer.invoke('pibox:localLlm:setLlamaServerPath', binaryPath),
+    detectLlamaServer: () => ipcRenderer.invoke('pibox:localLlm:detectLlamaServer'),
+    pickLlamaServer: () => ipcRenderer.invoke('pibox:localLlm:pickLlamaServer'),
+    restartLlamaServer: () => ipcRenderer.invoke('pibox:localLlm:restartLlamaServer'),
     refresh: () => ipcRenderer.invoke('pibox:localLlm:refresh'),
     openModelsDir: () => ipcRenderer.invoke('pibox:localLlm:openModelsDir'),
     onState: (cb) => {
