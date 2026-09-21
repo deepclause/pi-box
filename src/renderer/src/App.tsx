@@ -9,6 +9,7 @@ import ChatView from './components/ChatView'
 import AppHeader, { type AppView } from './components/AppHeader'
 import AuthDialog from './components/AuthDialog'
 import ProvidersSettings from './components/ProvidersSettings'
+import LocalModelsSettings from './components/LocalModelsSettings'
 import Onboarding from './components/Onboarding'
 import { useAuth } from './lib/useAuth'
 import { useGuestAudio } from './lib/useGuestAudio'
@@ -41,6 +42,7 @@ export default function App() {
   })
   const [networkOpen, setNetworkOpen] = useState(false)
   const [providersOpen, setProvidersOpen] = useState(false)
+  const [localModelsOpen, setLocalModelsOpen] = useState(false)
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
   const [setupOpen, setSetupOpen] = useState(false)
   const auth = useAuth()
@@ -116,6 +118,7 @@ export default function App() {
   }, [])
 
   const openProviders = useCallback(() => setProvidersOpen(true), [])
+  const openLocalModels = useCallback(() => setLocalModelsOpen(true), [])
 
   const completeOnboarding = useCallback(() => {
     setOnboardingDismissed(true)
@@ -223,6 +226,7 @@ export default function App() {
             onOpenNetworkSettings={() => setNetworkOpen(true)}
             hasCredentials={hasCredentials}
             onOpenProviders={openProviders}
+            onOpenLocalModels={openLocalModels}
             audioEnabled={guestAudio.enabled}
             audioAvailable={guestAudio.available}
             onToggleAudio={guestAudio.toggle}
@@ -273,6 +277,8 @@ export default function App() {
           onClose={() => setProvidersOpen(false)}
         />
       ) : null}
+
+      {localModelsOpen ? <LocalModelsSettings onClose={() => setLocalModelsOpen(false)} /> : null}
 
       <AuthDialog
         session={auth.session}

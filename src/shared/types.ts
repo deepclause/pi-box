@@ -1,3 +1,5 @@
+import type { LocalLlmState } from './local-llm-types'
+
 export type VmStatus = 'loading' | 'ready' | 'error' | 'stopped'
 
 export interface Workspace {
@@ -28,6 +30,8 @@ export interface AppState {
   firewallRules: FirewallRule[]
   /** Whether the first-run provider/model setup has been completed or skipped. */
   onboardingDone: boolean
+  /** Optional local (WebGPU/CPU) LLM provider state. */
+  localLlm: LocalLlmState
 }
 
 export interface PortForward {

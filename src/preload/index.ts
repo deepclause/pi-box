@@ -32,6 +32,7 @@ import type {
   RpcStreamingBehavior,
   RpcTree
 } from '../shared/rpc-types'
+import type { LocalLlmState } from '../shared/local-llm-types'
 
 export interface PiBoxRpcApi {
   getState(): Promise<RpcState>
@@ -86,6 +87,21 @@ export interface PiBoxAudioApi {
   onFrame(cb: (chunk: AudioChunk) => void): () => void
 }
 
+export interface PiBoxLocalLlmApi {
+  getState(): Promise<LocalLlmState>
+  getCapabilities(): Promise<LocalLlmState>
+  download(id: string): Promise<LocalLlmState>
+  cancelDownload(id: string): Promise<LocalLlmState>
+  remove(id: string): Promise<LocalLlmState>
+  setActiveModel(id: string | null): Promise<LocalLlmState>
+  setEnabled(enabled: boolean): Promise<LocalLlmState>
+  setNctx(nCtx: number): Promise<LocalLlmState>
+  setGpuLayers(layers: number): Promise<LocalLlmState>
+  refresh(): Promise<LocalLlmState>
+  openModelsDir(): Promise<OpenResult>
+  onState(cb: (state: LocalLlmState) => void): () => void
+}
+
 export interface PiBoxFbApi {
   /** Latest full frame (BGRA), or null before the first frame. */
   get(): Promise<FbSnapshot | null>
@@ -113,6 +129,7 @@ export interface PiBoxApi {
   attachFile(name: string, bytes: Uint8Array): Promise<AttachFileResult>
   fb: PiBoxFbApi
   audio: PiBoxAudioApi
+  localLlm: PiBoxLocalLlmApi
   termInput(data: string): void
   termResize(cols: number, rows: number): void
   clipboardReadText(): Promise<string>
@@ -162,6 +179,25 @@ const api: PiBoxApi = {
       const listener = (_event: Electron.IpcRendererEvent, chunk: AudioChunk): void => cb(chunk)
       ipcRenderer.on('pibox:audio:frame', listener)
       return () => ipcRenderer.removeListener('pibox:audio:frame', listener)
+    }
+  },
+
+  localLlm: {
+    getState: () => ipcRenderer.invoke('pibox:localLlm:state'),
+    getCapabilities: () => ipcRenderer.invoke('pibox:localLlm:getCapabilities'),
+    download: (id) => ipcRenderer.invoke('pibox:localLlm:download', id),
+    cancelDownload: (id) => ipcRenderer.invoke('pibox:localLlm:cancelDownload', id),
+    remove: (id) => ipcRenderer.invoke('pibox:localLlm:remove', id),
+    setActiveModel: (id) => ipcRenderer.invoke('pibox:localLlm:setActiveModel', id),
+    setEnabled: (enabled) => ipcRenderer.invoke('pibox:localLlm:setEnabled', enabled),
+    setNctx: (nCtx) => ipcRenderer.invoke('pibox:localLlm:setNctx', nCtx),
+    setGpuLayers: (layers) => ipcRenderer.invoke('pibox:localLlm:setGpuLayers', layers),
+    refresh: () => ipcRenderer.invoke('pibox:localLlm:refresh'),
+    openModelsDir: () => ipcRenderer.invoke('pibox:localLlm:openModelsDir'),
+    onState: (cb) => {
+      const listener = (_event: Electron.IpcRendererEvent, state: LocalLlmState): void => cb(state)
+      ipcRenderer.on('pibox:localLlm:state', listener)
+      return () => ipcRenderer.removeListener('pibox:localLlm:state', listener)
     }
   },
   termInput: (data) => ipcRenderer.send('pibox:termInput', data),

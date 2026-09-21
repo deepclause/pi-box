@@ -22,6 +22,12 @@ asar: false
 
 npmRebuild: false
 
+# The wllama engine wasm is served to the renderer over the pibox-asset
+# protocol. Keep a real copy next to the packaged app.
+extraResources:
+  - from: node_modules/@wllama/wllama/esm/wasm/wllama.wasm
+    to: wllama.wasm
+
 mac:
   category: public.app-category.developer-tools
   icon: build/icon.icns

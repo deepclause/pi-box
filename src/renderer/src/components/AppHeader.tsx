@@ -9,7 +9,8 @@ import {
   MoonIcon,
   SpeakerIcon,
   SunIcon,
-  UserIcon
+  UserIcon,
+  CpuIcon
 } from './icons'
 
 export type AppView = 'chat' | 'terminal' | 'screen'
@@ -29,6 +30,7 @@ interface Props {
   onOpenNetworkSettings: () => void
   hasCredentials: boolean
   onOpenProviders: () => void
+  onOpenLocalModels: () => void
   audioEnabled: boolean
   audioAvailable: boolean
   onToggleAudio: () => void
@@ -49,6 +51,7 @@ export default function AppHeader({
   onOpenNetworkSettings,
   hasCredentials,
   onOpenProviders,
+  onOpenLocalModels,
   audioEnabled,
   audioAvailable,
   onToggleAudio
@@ -146,6 +149,14 @@ export default function AppHeader({
         </button>
         <button className="icon-btn" title="Network settings" onClick={onOpenNetworkSettings}>
           <GearIcon size={14} />
+        </button>
+        <button
+          className="icon-btn"
+          title="Local models (WebGPU/CPU)"
+          data-active={state?.localLlm?.enabled ? 'true' : 'false'}
+          onClick={onOpenLocalModels}
+        >
+          <CpuIcon size={15} />
         </button>
         <button
           className="account-btn"

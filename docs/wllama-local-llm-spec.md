@@ -1,8 +1,24 @@
 # Spec: Local LLM via wllama (WebGPU/CPU) for the pi agent
 
-Status: **proposal / ready for review**
+Status: **implemented** on branch `feat/wllama-local-llm`
 Companion docs: `docs/webgpu-local-llm-research.md` (feasibility research)
 Target: `pi-box-app`
+
+## Implementation notes (what actually shipped)
+
+- Transport is **IPC channels** (`pibox:llm:host:in` / `:out`) bridged by a
+dedicated `llm-host` preload, not `MessagePort`. Same architecture, simpler
+plumbing; `MessagePort` remains a possible throughput optimisation.
+- The `Wllama` instance is created **lazily on first model load**; `init` only
+  records the wasm URL and probes capabilities, so opening the settings panel
+  does not instantiate the engine.
+- `@wllama/wllama`'s published `main` entry is missing; the host page imports
+  the explicit subpath `@wllama/wllama/esm/index.js`.
+- Custom file import and multimodal are **not** in this pass (catalog downloads
+  only).
+- Verified end-to-end in Electron (Chromium 152, GTX 1050): `pibox-asset://`
+  served the 8.46 MB wasm and a 1.19 MB GGUF, wllama loaded it on WebGPU and
+  generated tokens with usage stats.
 
 ---
 
@@ -401,7 +417,9 @@ setActiveModel, setEnabled, setNctx, setGpuLayers, openModelsDir, onState`.
 
 ## 5. IPC protocol (main ⇄ host page)
 
-Typed messages over the `MessagePort`. `requestId` is a UUID per chat/load.
+> Implemented over two IPC channels (`pibox:llm:host:in` / `pibox:llm:host:out`)
+> via the `llm-host` preload, using the typed messages below. The `MessagePort`
+> alternative described in earlier drafts was not needed.
 
 Main → host:
 

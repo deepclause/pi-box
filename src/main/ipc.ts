@@ -8,6 +8,7 @@ import type { AuthService } from './auth'
 import type { RpcSessionManager } from './rpc'
 import type { VmManager } from './vm'
 import type { WorkspaceStore } from './workspaces'
+import type { LocalLlmService } from './local-llm/service'
 
 export const MOUNT_POINT = '/workspace'
 
@@ -16,6 +17,7 @@ export interface IpcContext {
   store: WorkspaceStore
   rpc: RpcSessionManager
   auth: AuthService
+  localLlm: LocalLlmService
   buildState: () => AppState
   broadcast: () => void
   restartVm: () => Promise<void>
@@ -23,7 +25,7 @@ export interface IpcContext {
 }
 
 export function registerIpc(ctx: IpcContext): void {
-  const { vm, store, rpc, auth } = ctx
+  const { vm, store, rpc, auth, localLlm } = ctx
 
   ipcMain.handle('pibox:getState', () => ctx.buildState())
 
@@ -237,6 +239,70 @@ export function registerIpc(ctx: IpcContext): void {
     store.setOnboardingDone(done)
     ctx.broadcast()
     return ctx.buildState()
+  })
+
+  // --- local (WebGPU/CPU) LLM provider ---
+
+  ipcMain.handle('pibox:localLlm:state', () => localLlm.getState())
+
+  ipcMain.handle('pibox:localLlm:getCapabilities', async () => {
+    await localLlm.getCapabilities()
+    return localLlm.getState()
+  })
+
+  ipcMain.handle('pibox:localLlm:download', async (_event, id: string) => {
+    await localLlm.download(id)
+    ctx.broadcast()
+    return localLlm.getState()
+  })
+
+  ipcMain.handle('pibox:localLlm:cancelDownload', (_event, id: string) => {
+    const state = localLlm.cancelDownload(id)
+    ctx.broadcast()
+    return state
+  })
+
+  ipcMain.handle('pibox:localLlm:remove', async (_event, id: string) => {
+    const state = await localLlm.remove(id)
+    ctx.broadcast()
+    return state
+  })
+
+  ipcMain.handle('pibox:localLlm:setActiveModel', (_event, id: string | null) => {
+    const state = localLlm.setActiveModel(id)
+    ctx.broadcast()
+    return state
+  })
+
+  ipcMain.handle('pibox:localLlm:setEnabled', (_event, enabled: boolean) => {
+    const state = localLlm.setEnabled(enabled)
+    ctx.broadcast()
+    return state
+  })
+
+  ipcMain.handle('pibox:localLlm:setNctx', (_event, nCtx: number) => {
+    const state = localLlm.setNctx(nCtx)
+    ctx.broadcast()
+    return state
+  })
+
+  ipcMain.handle('pibox:localLlm:setGpuLayers', (_event, layers: number) => {
+    const state = localLlm.setGpuLayers(layers)
+    ctx.broadcast()
+    return state
+  })
+
+  ipcMain.handle('pibox:localLlm:refresh', () => {
+    const state = localLlm.refreshModels()
+    ctx.broadcast()
+    return state
+  })
+
+  ipcMain.handle('pibox:localLlm:openModelsDir', async () => {
+    const dir = localLlm.getState().modelsDir
+    if (!dir) return { ok: false, error: 'No models directory' }
+    const error = await shell.openPath(dir)
+    return error ? { ok: false, error } : { ok: true }
   })
 
   ipcMain.handle('pibox:addPortForward', async (_event, config: { hostPort: number; guestPort: number; guestHost?: string }) => {

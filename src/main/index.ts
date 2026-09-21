@@ -6,14 +6,31 @@ import { WorkspaceStore } from './workspaces'
 import { RpcSessionManager } from './rpc'
 import { AuthService } from './auth'
 import { MOUNT_POINT, registerIpc } from './ipc'
+import { LocalLlmService } from './local-llm/service'
+import { registerLocalLlmScheme } from './local-llm/asset-protocol'
 import type { AppState, AudioChunk, FbFrame } from '../shared/types'
 import type { RpcEvent, RpcState } from '../shared/rpc-types'
+import type { LocalLlmState } from '../shared/local-llm-types'
+
+// WebGPU is not exposed on some GPU/driver combinations (e.g. older NVIDIA
+// laptops on Linux). Force it on so the local model can use the GPU; wllama
+// still falls back to CPU when no adapter exists.
+app.commandLine.appendSwitch('enable-unsafe-webgpu')
+app.commandLine.appendSwitch('ignore-gpu-blocklist')
+
+// The local LLM serves model/engine assets over a privileged scheme; this must
+// run before `app.whenReady()`.
+registerLocalLlmScheme()
 
 let mainWindow: BrowserWindow | null = null
 
 const vm = new VmManager()
 const store = new WorkspaceStore()
 const rpc = new RpcSessionManager(vm, store)
+const localLlm = new LocalLlmService({
+  userDataDir: app.getPath('userData'),
+  onChange: (state) => broadcastLocalLlm(state)
+})
 const auth = new AuthService(store, {
   publish: (channel, payload) => broadcastAuth(channel, payload),
   onCredentialsChanged: () => {
@@ -38,7 +55,8 @@ function buildState(): AppState {
     networkEnabled: vm.networkEnabled,
     portForwards: vm.portForwards,
     firewallRules: vm.firewallRules,
-    onboardingDone: store.getOnboardingDone()
+    onboardingDone: store.getOnboardingDone(),
+    localLlm: localLlm.getState()
   }
 }
 
@@ -69,6 +87,12 @@ function broadcastRpcState(state: RpcState): void {
 function broadcastAuth(channel: string, payload: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(channel, payload)
+  }
+}
+
+function broadcastLocalLlm(state: LocalLlmState): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('pibox:localLlm:state', state)
   }
 }
 
@@ -109,6 +133,8 @@ async function restartVm(): Promise<void> {
   await rpc.teardown()
   auth.reset()
   clearRpcReadyMarker()
+  // Make sure pi sees the local provider (if enabled) before it boots.
+  localLlm.onWorkspace(active.path)
   await vm.start({ [MOUNT_POINT]: active.path })
   broadcast()
   void auth.publishStatus()
@@ -161,12 +187,14 @@ function createWindow(): void {
 
 void app.whenReady().then(async () => {
   store.init()
+  await localLlm.start()
 
   registerIpc({
     vm,
     store,
     rpc,
     auth,
+    localLlm,
     buildState,
     broadcast,
     restartVm,
@@ -186,6 +214,7 @@ void app.whenReady().then(async () => {
   const active = store.getActive()
   if (active) {
     clearRpcReadyMarker()
+    localLlm.onWorkspace(active.path)
     await vm.start({ [MOUNT_POINT]: active.path })
     broadcast()
   }
@@ -216,6 +245,11 @@ app.on('before-quit', (event) => {
   void (async () => {
     try {
       await rpc.teardown()
+    } catch {
+      // ignore
+    }
+    try {
+      await localLlm.stop()
     } catch {
       // ignore
     }

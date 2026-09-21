@@ -7,7 +7,16 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()]
   },
   preload: {
-    plugins: [externalizeDepsPlugin()]
+    plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve('src/preload/index.ts'),
+          // Dedicated, minimal bridge for the hidden wllama host window.
+          'llm-host': resolve('src/preload/llm-host.ts')
+        }
+      }
+    }
   },
   renderer: {
     resolve: {
@@ -16,6 +25,15 @@ export default defineConfig({
         '@shared': resolve('src/shared')
       }
     },
-    plugins: [react()]
+    plugins: [react()],
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve('src/renderer/index.html'),
+          // Hidden page that runs wllama with WebGPU/CPU.
+          'llm-host': resolve('src/renderer/llm-host.html')
+        }
+      }
+    }
   }
 })

@@ -3480,3 +3480,56 @@ body {
   font-size: 12px;
   opacity: 0.85;
 }
+
+/* ---------- Local models (wllama) settings ---------- */
+
+.local-model-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.local-badge {
+  font-size: 11px;
+  color: var(--green);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.local-progress {
+  margin-top: 6px;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-active);
+  overflow: hidden;
+}
+
+.local-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.local-input {
+  width: 96px;
+  padding: 5px 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--field-bg);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.local-input:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+  background: var(--field-bg-focus);
+}
+
+.local-error {
+  margin: 10px 2px 0;
+  font-size: 12px;
+  color: var(--red);
+}

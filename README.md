@@ -38,7 +38,11 @@ Alpine Linux VM with the **pi coding agent** installed — and gives you:
 - **network controls**: runtime on/off toggle, TCP **port forwarding**, and
   outbound **firewall rules** (via the gear menu in the terminal header),
 - a **persistent root filesystem** per workspace, so guest-root changes (`apk add`,
-  `/etc`, `/root`, `/tmp`, caches) survive restarts.
+  `/etc`, `/root`, `/tmp`, caches) survive restarts,
+- an optional **local LLM** running on the host with WebGPU (CPU fallback) via
+  [wllama](https://github.com/ngxson/wllama): download a small GGUF and let pi
+  use it as an OpenAI-compatible provider with tool calling — see
+  `docs/wllama-local-llm-spec.md`.
 
 ![status](https://img.shields.io/badge/status-prototype-orange)
 
@@ -320,3 +324,9 @@ Release binaries are built by GitHub Actions on every published release — see
 - Persistence uses a 512 MB sparse ext4 overlay image per workspace
   (`<workspace>/.agentvm/upper.img`); the first boot of a workspace is slower
   because the guest formats it with `mkfs.ext4`.
+- The optional local LLM runs in a hidden Chromium window on the host and is
+  exposed to pi through AgentVM's gateway (`192.168.127.1` → `127.0.0.1`), so it
+  needs the VM network to be enabled. On GPUs Chromium blocklists, WebGPU is
+  forced on with `--enable-unsafe-webgpu`; CPU inference is always available but
+  slow. Model weights are downloaded on request (200 MB–2 GB) to
+  `<userData>/models`.

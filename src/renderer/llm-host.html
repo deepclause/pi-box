@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' pibox-asset: blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    />
+    <title>pi-box local LLM host</title>
+  </head>
+  <body>
+    <!-- Hidden host page: runs wllama (WebGPU/CPU) for the main process. -->
+    <script type="module" src="/src/llm-host/main.ts"></script>
+  </body>
+</html>
