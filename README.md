@@ -327,6 +327,7 @@ Release binaries are built by GitHub Actions on every published release — see
 - The optional local LLM runs in a hidden Chromium window on the host and is
   exposed to pi through AgentVM's gateway (`192.168.127.1` → `127.0.0.1`), so it
   needs the VM network to be enabled. On GPUs Chromium blocklists, WebGPU is
-  forced on with `--enable-unsafe-webgpu`; CPU inference is always available but
-  slow. Model weights are downloaded on request (200 MB–2 GB) to
-  `<userData>/models`.
+  forced on with `--enable-unsafe-webgpu`. llama.cpp's WebGPU backend requires
+  the GPU's `shader-f16` feature; on GPUs without it (e.g. NVIDIA Pascal) the
+  app falls back to CPU inference, which always works but is slow. Model weights
+  are downloaded on request (200 MB–2 GB) to `<userData>/models`.

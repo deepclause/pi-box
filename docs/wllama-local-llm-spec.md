@@ -19,6 +19,14 @@ plumbing; `MessagePort` remains a possible throughput optimisation.
 - Verified end-to-end in Electron (Chromium 152, GTX 1050): `pibox-asset://`
   served the 8.46 MB wasm and a 1.19 MB GGUF, wllama loaded it on WebGPU and
   generated tokens with usage stats.
+- **GPU gate:** llama.cpp's WebGPU backend hard-requires the adapter
+  `shader-f16` feature (`GGML_ASSERT(... HasFeature(ShaderF16))`, wllama#241).
+  The host page probes for it and forces `n_gpu_layers: 0` when missing, so
+  models load deterministically on the CPU instead of hitting the native assert.
+  The settings panel reports GPU vs CPU and why. On this dev machine the GTX
+  1050 (Pascal) has `subgroups` but no `shader-f16`, and the Intel Gen9 has
+  `shader-f16` but no `subgroups` / a too-large workgroup (#229), so both run on
+  CPU — a hardware limitation, not an integration bug.
 
 ---
 

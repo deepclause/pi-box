@@ -81,11 +81,21 @@ export default function LocalModelsSettings({ onClose }: Props) {
             <div className="settings-list">
               <div className="settings-row">
                 <div className="settings-row-text">
-                  <strong>{caps ? (caps.webgpu ? 'WebGPU available' : 'CPU only') : 'Checking…'}</strong>
+                  <strong>
+                    {!caps
+                      ? 'Checking…'
+                      : caps.webgpu && caps.shaderF16
+                        ? 'WebGPU (GPU)'
+                        : 'CPU only'}
+                  </strong>
                   <span>
-                    {caps?.webgpu
-                      ? `${caps.adapter?.description || caps.adapter?.vendor || 'GPU'}${caps.shaderF16 ? ' · f16' : ''}`
-                      : 'WebGPU was not detected; inference will run on the CPU and be slow.'}
+                    {!caps
+                      ? 'Probing the GPU…'
+                      : caps.webgpu && caps.shaderF16
+                        ? `${caps.adapter?.description || caps.adapter?.vendor || 'GPU'}${caps.adapter?.architecture ? ` (${caps.adapter.architecture})` : ''} · f16`
+                        : caps.webgpu
+                          ? `A GPU was found (${caps.adapter?.vendor || 'unknown'}), but it lacks the shader-f16 feature that llama.cpp’s WebGPU backend requires, so inference runs on the CPU (slow).`
+                          : 'WebGPU was not detected; inference runs on the CPU (slow).'}
                   </span>
                 </div>
               </div>

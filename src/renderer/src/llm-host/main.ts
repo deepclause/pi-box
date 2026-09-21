@@ -66,6 +66,24 @@ async function probeCapabilities(): Promise<LocalLlmCapabilities> {
   return caps
 }
 
+// llama.cpp's WebGPU backend asserts on adapters without `shader-f16` (see
+// wllama#241), so we only offload when the GPU actually provides it; otherwise
+// we force wllama's supported CPU path instead of letting native abort.
+let f16Promise: Promise<boolean> | null = null
+function gpuHasShaderF16(): Promise<boolean> {
+  if (!f16Promise) {
+    f16Promise = (async () => {
+      try {
+        const adapter = await navigator.gpu?.requestAdapter({ powerPreference: 'high-performance' })
+        return !!adapter?.features.has('shader-f16')
+      } catch {
+        return false
+      }
+    })()
+  }
+  return f16Promise
+}
+
 function ensureEngine(): Wllama {
   if (!wllama) {
     if (!wasmUrl) throw new Error('Engine not initialised')
@@ -95,8 +113,19 @@ async function handleLoad(msg: Extract<MainToHost, { t: 'load' }>): Promise<void
     await engine.exit()
     currentModelId = null
   }
+  const params = { ...msg.params }
+  if (params.n_gpu_layers !== 0 && !(await gpuHasShaderF16())) {
+    params.n_gpu_layers = 0
+    send({
+      t: 'log',
+      level: 'warn',
+      message:
+        'GPU lacks shader-f16, which llama.cpp\'s WebGPU backend requires; loading on CPU.'
+    })
+    send({ t: 'capabilities', capabilities: await probeCapabilities() })
+  }
   setStatus('loading', msg.modelId)
-  await engine.loadModelFromUrl(msg.url, { useCache: false, ...msg.params } as never)
+  await engine.loadModelFromUrl(msg.url, { useCache: false, ...params } as never)
   currentModelId = msg.modelId
   const ctx = engine.getLoadedContextInfo()
   send({ t: 'loaded', requestId: msg.requestId, modelId: msg.modelId, nCtx: ctx?.n_ctx })
